@@ -1,0 +1,122 @@
+[
+  {
+    "index": 55,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3774184/",
+    "success": false,
+    "error": "Todas as estratégias falharam"
+  },
+  {
+    "index": 92,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3868799/",
+    "success": false,
+    "error": "Todas as estratégias falharam"
+  },
+  {
+    "index": 120,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3615599/",
+    "success": false,
+    "error": "Todas as estratégias falharam"
+  },
+  {
+    "index": 121,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4050424/",
+    "success": false,
+    "error": "Todas as estratégias falharam"
+  },
+  {
+    "index": 122,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3659353/",
+    "success": true,
+    "fileName": "doc_122_VIIP.pdf",
+    "method": "direct_link"
+  },
+  {
+    "index": 124,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4398884/",
+    "success": true,
+    "fileName": "doc_124_VIIP.pdf",
+    "method": "direct_link"
+  },
+  {
+    "index": 126,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4385880/",
+    "success": true,
+    "fileName": "doc_126_VIIP.pdf",
+    "method": "direct_link"
+  },
+  {
+    "index": 128,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5866446/",
+    "success": false,
+    "error": "Todas as estratégias falharam"
+  },
+  {
+    "index": 192,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7012842/",
+    "success": true,
+    "fileName": "doc_192_41598_2020_Article_58898.pdf",
+    "method": "direct_link"
+  },
+  {
+    "index": 228,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5047659/",
+    "success": false,
+    "error": "Todas as estratégias falharam"
+  },
+  {
+    "index": 229,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5454470/",
+    "success": false,
+    "error": "Todas as estratégias falharam"
+  },
+  {
+    "index": 233,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6188462/",
+    "success": false,
+    "error": "Todas as estratégias falharam"
+  },
+  {
+    "index": 238,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4653058/",
+    "success": false,
+    "error": "Todas as estratégias falharam"
+  },
+  {
+    "index": 249,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4631774/",
+    "success": false,
+    "error": "Todas as estratégias falharam"
+  },
+  {
+    "index": 268,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3962621/",
+    "success": false,
+    "error": "Todas as estratégias falharam"
+  },
+  {
+    "index": 284,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4152162/",
+    "success": false,
+    "error": "Todas as estratégias falharam"
+  },
+  {
+    "index": 393,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3792163/",
+    "success": false,
+    "error": "Todas as estratégias falharam"
+  },
+  {
+    "index": 451,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7055474/",
+    "success": true,
+    "fileName": "doc_451_fmicb-11-00167.pdf",
+    "method": "direct_link"
+  },
+  {
+    "index": 575,
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9964234/",
+    "success": true,
+    "fileName": "doc_575_life-13-00576.pdf",
+    "method": "direct_link"
+  }
+]
