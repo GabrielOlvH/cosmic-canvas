@@ -1,0 +1,74 @@
+[
+  {
+    "content": "LangChain is a framework for developing applications powered by large language models (LLMs). It provides tools for document loading, text splitting, embeddings, and vector stores. LangChain simplifies the process of building context-aware AI applications with features like memory, agents, and chains.",
+    "metadata": {
+      "source": "langchain-overview",
+      "title": "LangChain Overview",
+      "type": "documentation",
+      "timestamp": 1704067200000
+    }
+  },
+  {
+    "content": "Vector databases are specialized databases designed to store and query high-dimensional vector embeddings. They enable semantic search by finding documents that are semantically similar to a query, rather than relying on exact keyword matches. Popular vector databases include Pinecone, Weaviate, and Chroma.",
+    "metadata": {
+      "source": "vector-databases",
+      "title": "Understanding Vector Databases",
+      "type": "article",
+      "timestamp": 1704153600000
+    }
+  },
+  {
+    "content": "TLDraw is a React-based infinite canvas library that enables developers to build collaborative whiteboard applications. It provides a complete drawing experience with shapes, text, arrows, and more. TLDraw is highly customizable and supports real-time collaboration out of the box.",
+    "metadata": {
+      "source": "tldraw-intro",
+      "title": "Introduction to TLDraw",
+      "type": "documentation",
+      "timestamp": 1704240000000
+    }
+  },
+  {
+    "content": "Retrieval Augmented Generation (RAG) is a technique that combines the power of large language models with external knowledge retrieval. By retrieving relevant documents from a knowledge base and providing them as context to an LLM, RAG enables more accurate and up-to-date responses without requiring model fine-tuning.",
+    "metadata": {
+      "source": "rag-explained",
+      "title": "RAG: Retrieval Augmented Generation",
+      "type": "tutorial",
+      "timestamp": 1704326400000
+    }
+  },
+  {
+    "content": "Text embeddings are numerical representations of text that capture semantic meaning. Modern embedding models like OpenAI's text-embedding-ada-002 can convert any text into a high-dimensional vector. These vectors can then be compared using cosine similarity to find semantically related content.",
+    "metadata": {
+      "source": "embeddings-guide",
+      "title": "Guide to Text Embeddings",
+      "type": "guide",
+      "timestamp": 1704412800000
+    }
+  },
+  {
+    "content": "TanStack Start is a modern full-stack framework for building React applications. It provides server-side rendering, API routes, and seamless integration with TanStack Query and TanStack Router. TanStack Start is designed for type-safety and developer experience.",
+    "metadata": {
+      "source": "tanstack-start",
+      "title": "TanStack Start Framework",
+      "type": "documentation",
+      "timestamp": 1704499200000
+    }
+  },
+  {
+    "content": "Document chunking is the process of breaking large documents into smaller, manageable pieces. This is essential for RAG applications because LLMs have limited context windows. Good chunking strategies preserve semantic meaning while ensuring chunks fit within token limits.",
+    "metadata": {
+      "source": "chunking-strategies",
+      "title": "Document Chunking Strategies",
+      "type": "best-practices",
+      "timestamp": 1704585600000
+    }
+  },
+  {
+    "content": "AI agents are autonomous systems that can perceive their environment, make decisions, and take actions to achieve goals. Modern AI agents often use LLMs as their reasoning engine, combined with tools and memory systems to perform complex tasks.",
+    "metadata": {
+      "source": "ai-agents",
+      "title": "Understanding AI Agents",
+      "type": "article",
+      "timestamp": 1704672000000
+    }
+  }
+]

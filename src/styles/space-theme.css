@@ -1,0 +1,304 @@
+/**
+ * Space Theme CSS Styles and Animations
+ */
+
+/* ============================================
+   NEBULA ANIMATIONS
+   ============================================ */
+
+@keyframes nebula-drift-1 {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(30px, 20px) scale(1.1);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes nebula-drift-2 {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-25px, 30px) scale(1.05);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes nebula-drift-3 {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(20px, -25px) scale(1.08);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+/* ============================================
+   STAR ANIMATIONS
+   ============================================ */
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes shooting-star {
+  0% {
+    transform: translateX(-100px) translateY(-100px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(1000px) translateY(1000px);
+    opacity: 0;
+  }
+}
+
+/* ============================================
+   PLANET ANIMATIONS
+   ============================================ */
+
+@keyframes planet-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes planet-glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px currentColor);
+  }
+  50% {
+    filter: drop-shadow(0 0 25px currentColor) drop-shadow(0 0 40px currentColor);
+  }
+}
+
+@keyframes orbit-flow {
+  0% {
+    stroke-dashoffset: 1000;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ============================================
+   PARTICLE ANIMATIONS
+   ============================================ */
+
+@keyframes particle-drift {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.5;
+  }
+  90% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(50px);
+    opacity: 0;
+  }
+}
+
+/* ============================================
+   COMPONENT STYLES
+   ============================================ */
+
+.space-background {
+  position: absolute;
+  inset: 0;
+  background: #0a0e27;
+  overflow: hidden;
+}
+
+.nebula-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.nebula-cloud {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.15;
+  mix-blend-mode: screen;
+}
+
+.nebula-cloud-1 {
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(circle, #9d4edd 0%, #6b2d5c 50%, transparent 70%);
+  top: -200px;
+  left: -200px;
+  animation: nebula-drift-1 40s ease-in-out infinite;
+}
+
+.nebula-cloud-2 {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, #4361ee 0%, #1a1b4b 50%, transparent 70%);
+  top: 20%;
+  right: -100px;
+  animation: nebula-drift-2 35s ease-in-out infinite;
+}
+
+.nebula-cloud-3 {
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, #06ffa5 0%, #4cc9f0 50%, transparent 70%);
+  bottom: -150px;
+  left: 30%;
+  animation: nebula-drift-3 45s ease-in-out infinite;
+}
+
+.star-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: white;
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+.planet-shape {
+  position: relative;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.planet-shape:hover {
+  animation: planet-glow-pulse 2s ease-in-out infinite;
+}
+
+.planet-ring {
+  position: absolute;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.6;
+  transform: rotateX(75deg);
+}
+
+.orbit-path {
+  stroke-dasharray: 10, 5;
+  stroke-linecap: round;
+  animation: orbit-flow 20s linear infinite;
+}
+
+.particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  animation: particle-drift 15s linear infinite;
+}
+
+/* ============================================
+   INTERACTIVE EFFECTS
+   ============================================ */
+
+.planet-selected {
+  animation: planet-glow-pulse 1.5s ease-in-out infinite;
+  z-index: 100;
+}
+
+.constellation-line {
+  stroke: #ffd60a;
+  stroke-width: 2;
+  stroke-dasharray: 5, 5;
+  opacity: 0.6;
+  animation: orbit-flow 10s linear infinite;
+}
+
+/* ============================================
+   SPACE CONTROL PANEL
+   ============================================ */
+
+.space-panel {
+  background: rgba(10, 14, 39, 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(77, 201, 240, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 0 30px rgba(77, 201, 240, 0.2);
+}
+
+.holographic-button {
+  background: linear-gradient(135deg, rgba(77, 201, 240, 0.2), rgba(157, 74, 237, 0.2));
+  border: 1px solid rgba(77, 201, 240, 0.5);
+  color: #4cc9f0;
+  transition: all 0.3s ease;
+}
+
+.holographic-button:hover {
+  background: linear-gradient(135deg, rgba(77, 201, 240, 0.4), rgba(157, 74, 237, 0.4));
+  box-shadow: 0 0 20px rgba(77, 201, 240, 0.5);
+}
+
+.holographic-input {
+  background: rgba(10, 14, 39, 0.5);
+  border: 1px solid rgba(77, 201, 240, 0.3);
+  color: #f8f9fa;
+}
+
+.holographic-input:focus {
+  border-color: #4cc9f0;
+  box-shadow: 0 0 15px rgba(77, 201, 240, 0.3);
+  outline: none;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 768px) {
+  .nebula-cloud {
+    filter: blur(60px);
+  }
+
+  .nebula-cloud-1,
+  .nebula-cloud-2,
+  .nebula-cloud-3 {
+    width: 400px;
+    height: 400px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .nebula-cloud,
+  .star,
+  .planet-shape,
+  .orbit-path,
+  .particle {
+    animation: none !important;
+  }
+}

@@ -1,0 +1,149 @@
+TypeScript: A Complete Guide
+
+Introduction
+TypeScript is a statically typed superset of JavaScript developed by Microsoft. It adds optional type annotations to JavaScript, enabling better tooling, error detection, and code documentation.
+
+Why TypeScript?
+
+1. Type Safety - Catch errors at compile-time instead of runtime
+2. Better IDE Support - IntelliSense, autocomplete, and refactoring tools work better
+3. Self-Documenting Code - Types serve as inline documentation
+4. Easier Refactoring - Compiler catches breaking changes
+5. Enterprise Ready - Better for large codebases and teams
+
+Basic Types
+
+Primitive Types:
+- string: Text values
+- number: Numeric values
+- boolean: true/false
+- null and undefined
+- symbol: Unique identifiers
+
+Special Types:
+- any: Disables type checking
+- unknown: Type-safe version of any
+- never: Value that never occurs
+- void: Function returns nothing
+
+Arrays and Tuples:
+- number[]: Array of numbers
+- [string, number]: Tuple with exact types
+
+Interfaces
+Interfaces define the shape of objects:
+
+interface User {
+  name: string;
+  age: number;
+  email?: string; // Optional property
+}
+
+Type Aliases
+Alternative way to define types:
+
+type Point = {
+  x: number;
+  y: number;
+};
+
+Union and Intersection Types
+
+Union (OR):
+type Status = "pending" | "approved" | "rejected";
+
+Intersection (AND):
+type Employee = Person & Worker;
+
+Generics
+Write reusable code that works with multiple types:
+
+function identity<T>(arg: T): T {
+  return arg;
+}
+
+Advanced Features
+
+1. Utility Types
+   - Partial<T>: Makes all properties optional
+   - Required<T>: Makes all properties required
+   - Pick<T, K>: Select specific properties
+   - Omit<T, K>: Exclude specific properties
+   - Record<K, T>: Create object type with specific keys
+
+2. Mapped Types
+   Transform existing types into new ones
+
+3. Conditional Types
+   Types that depend on conditions
+
+4. Template Literal Types
+   String manipulation at type level
+
+TypeScript with React
+
+Use proper types for props and state:
+
+interface ButtonProps {
+  onClick: () => void;
+  children: React.ReactNode;
+  disabled?: boolean;
+}
+
+const Button: React.FC<ButtonProps> = ({ onClick, children, disabled }) => {
+  return <button onClick={onClick} disabled={disabled}>{children}</button>;
+};
+
+Configuration (tsconfig.json)
+
+Key compiler options:
+- strict: Enable all strict type checking
+- target: ECMAScript version to compile to
+- module: Module system (CommonJS, ES6, etc.)
+- jsx: JSX compilation mode for React
+- esModuleInterop: Better CommonJS/ES6 interop
+
+Best Practices
+
+1. Use strict mode
+2. Avoid 'any' type when possible
+3. Prefer interfaces for object shapes
+4. Use type aliases for unions/intersections
+5. Enable noImplicitAny
+6. Use const assertions for literal types
+7. Leverage type inference
+8. Use unknown instead of any when needed
+
+Common Patterns
+
+1. Discriminated Unions for state management
+2. Builder pattern with method chaining
+3. Dependency injection with interfaces
+4. Factory functions with generics
+
+TypeScript vs JavaScript
+
+When to use TypeScript:
+- Large codebases
+- Team projects
+- Long-term maintenance
+- Public APIs/libraries
+- When you want better IDE support
+
+When JavaScript might be enough:
+- Small scripts
+- Prototypes
+- Simple websites
+- Learning projects
+
+Ecosystem
+
+TypeScript works great with:
+- React
+- Node.js
+- Angular
+- Vue
+- Express
+- NestJS
+- GraphQL
+- MongoDB with Mongoose
