@@ -50,9 +50,11 @@ const COLLISION_MARGIN = 34 // extra spacing beyond pure rectangle separation
 const MAX_ARTICLES_PER_THEME = 12
 const THEME_SPLIT_MIN_CHILDREN = 16 // only split if exceeding this
 // Explanation (level3) packing
-const EXPLANATION_GAP = 30
-const EXPLANATION_BASE_CLEARANCE = 260
-const EXPLANATION_MAX_SPREAD_DEG = 50 // total spread (degrees) allocated for explanations cluster
+const EXPLANATION_GAP = 60 // increased from 30 for more breathing room
+const EXPLANATION_BASE_CLEARANCE = 400 // increased from 260 for better parent clearance
+const EXPLANATION_MIN_SPREAD_DEG = 30 // minimum angular spread even for few items
+const EXPLANATION_MAX_SPREAD_DEG = 90 // maximum spread to prevent wrapping around (increased from 50)
+const EXPLANATION_RADIUS_PADDING = 150 // extra radius padding beyond calculated minimum
 
 
 // Simple seeded hash for deterministic jitter
@@ -250,23 +252,49 @@ export function computeRadialOrbitalLayout(root: MindMapNode): Map<string, Radia
       const dims = l3List.map(doc => ({ doc, dim: estimateNodeDimensions(doc) }))
       const totalWidth = dims.reduce((s, d) => s + d.dim.width, 0)
       const totalGaps = EXPLANATION_GAP * (l3List.length - 1)
-      // Choose a spread angle (rad)
+      
+      // Calculate adaptive spread angle based on content
+      // Minimum spread to avoid cramping, maximum to prevent sector overlap
+      const minSpreadRad = (EXPLANATION_MIN_SPREAD_DEG * Math.PI) / 180
       const maxSpreadRad = (EXPLANATION_MAX_SPREAD_DEG * Math.PI) / 180
-      // Required radius so that arc length = widths+gaps inside chosen spread
-      let rNeeded = (totalWidth + totalGaps) / maxSpreadRad
-      if (rNeeded < clearanceBase) rNeeded = clearanceBase
-      const radius = rNeeded
+      
+      // Calculate required radius for max spread first
+      let radiusAtMaxSpread = (totalWidth + totalGaps) / maxSpreadRad
+      
+      // If we need more radius than clearance base, use that with max spread
+      // Otherwise, reduce spread angle to fit comfortably at clearance radius
+      let radius: number
+      let actualSpread: number
+      
+      if (radiusAtMaxSpread > clearanceBase) {
+        // Need larger radius - use it with padding
+        radius = radiusAtMaxSpread + EXPLANATION_RADIUS_PADDING
+        actualSpread = maxSpreadRad
+      } else {
+        // Can fit at base clearance - calculate optimal spread
+        radius = clearanceBase + EXPLANATION_RADIUS_PADDING
+        // Arc length = radius * angle => angle = arcLength / radius
+        actualSpread = (totalWidth + totalGaps) / radius
+        // Ensure minimum spread for visual balance
+        if (actualSpread < minSpreadRad) actualSpread = minSpreadRad
+      }
+      
+      // Calculate angle widths at final radius
       const angleWidths = dims.map(d => d.dim.width / radius)
       const gapAngle = EXPLANATION_GAP / radius
       const totalAngle = angleWidths.reduce((a, b) => a + b, 0) + gapAngle * (l3List.length - 1)
+      
+      // Center around parent angle
       const startA = parentAngle - totalAngle / 2
       let cursorA = startA
+      
       dims.forEach(({ doc, dim }, idx) => {
         const aCenter = cursorA + angleWidths[idx] / 2
-        const jitter = (random() - 0.5) * 0.02
-        const rFinal = radius + jitter * 80 + idx * 12
-        const x = rFinal * Math.cos(aCenter)
-        const y = rFinal * Math.sin(aCenter)
+        // Small tangential jitter only (not radial) to avoid perfect alignment
+        const tangentialJitter = (random() - 0.5) * 0.015
+        const adjustedAngle = aCenter + tangentialJitter
+        const x = radius * Math.cos(adjustedAngle)
+        const y = radius * Math.sin(adjustedAngle)
         nodes.set(doc.id, {
           id: doc.id,
           x,
@@ -298,21 +326,39 @@ function resolveCollisions(nodes: Map<string, RadialLayoutNode>) {
     levelGroups.get(n.level)!.push(n)
   }
 
-  for (const [, arr] of levelGroups.entries()) {
-    // Deterministic ordering for reproducibility
-    arr.sort((a, b) => a.id.localeCompare(b.id))
-    for (let iter = 0; iter < COLLISION_ITERATIONS; iter++) {
+  // Process each level with enhanced collision detection
+  for (const [level, arr] of levelGroups.entries()) {
+    // Deterministic ordering by spatial position (angle-based for radial layout)
+    arr.sort((a, b) => {
+      const angleA = Math.atan2(a.y, a.x)
+      const angleB = Math.atan2(b.y, b.x)
+      if (Math.abs(angleA - angleB) > 0.01) return angleA - angleB
+      // If angles similar, sort by radius
+      return Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y)
+    })
+    
+    // Use more iterations for outer levels (explanations) which are more crowded
+    const iterations = level >= 3 ? COLLISION_ITERATIONS * 2 : COLLISION_ITERATIONS
+    
+    for (let iter = 0; iter < iterations; iter++) {
       let any = false
+      
+      // Check all pairs - important for level 3 where cross-parent overlaps happen
       for (let i = 0; i < arr.length; i++) {
         const a = arr[i]
         for (let j = i + 1; j < arr.length; j++) {
           const b = arr[j]
           if (rectOverlap(a, b)) {
-            // Push the one that is further clockwise (higher angle) outward
-            const angleA = Math.atan2(a.y, a.x)
-            const angleB = Math.atan2(b.y, b.x)
-            const pushTarget = angleA < angleB ? b : a
-            radialPush(pushTarget, COLLISION_PUSH)
+            // For level 3+, push both nodes apart (hybrid radial + tangential)
+            if (level >= 3) {
+              separateNodes(a, b)
+            } else {
+              // For level 1-2, use original radial-only push
+              const angleA = Math.atan2(a.y, a.x)
+              const angleB = Math.atan2(b.y, b.x)
+              const pushTarget = angleA < angleB ? b : a
+              radialPush(pushTarget, COLLISION_PUSH)
+            }
             any = true
           }
         }
@@ -320,6 +366,42 @@ function resolveCollisions(nodes: Map<string, RadialLayoutNode>) {
       if (!any) break
     }
   }
+}
+
+// Separate two overlapping nodes with hybrid radial + tangential movement
+function separateNodes(a: RadialLayoutNode, b: RadialLayoutNode) {
+  const angleA = Math.atan2(a.y, a.x)
+  const angleB = Math.atan2(b.y, b.x)
+  const radiusA = Math.hypot(a.x, a.y)
+  const radiusB = Math.hypot(b.x, b.y)
+  
+  // Angular difference
+  const angleDiff = Math.abs(angleA - angleB)
+  
+  // If nodes at similar angles (< 5°), push radially
+  if (angleDiff < 0.087) { // ~5 degrees
+    // Push the outer one further out
+    const pushTarget = radiusA > radiusB ? a : b
+    radialPush(pushTarget, COLLISION_PUSH)
+  } else {
+    // If at different angles, push tangentially (perpendicular to radius)
+    // Push the one with higher angle counter-clockwise, lower clockwise
+    const pushA = angleA > angleB
+    tangentialPush(a, pushA ? -COLLISION_PUSH * 0.7 : COLLISION_PUSH * 0.7)
+    tangentialPush(b, pushA ? COLLISION_PUSH * 0.7 : -COLLISION_PUSH * 0.7)
+  }
+}
+
+// Push node tangentially (perpendicular to radius direction)
+function tangentialPush(n: RadialLayoutNode, delta: number) {
+  const r = Math.hypot(n.x, n.y)
+  if (r === 0) return
+  const angle = Math.atan2(n.y, n.x)
+  // Delta in angular direction
+  const angleChange = delta / r
+  const newAngle = angle + angleChange
+  n.x = r * Math.cos(newAngle)
+  n.y = r * Math.sin(newAngle)
 }
 
 function rectOverlap(a: RadialLayoutNode, b: RadialLayoutNode): boolean {
