@@ -1,23 +1,23 @@
 import { useEffect, useRef } from 'react'
 import {
   Tldraw,
-  type TLShapeId,
-  type Editor,
   createShapeId,
   useEditor,
 } from 'tldraw'
 import 'tldraw/tldraw.css'
-import { DocumentCardUtil, type DocumentCardShape } from './shapes/DocumentCardUtil'
+import { DocumentCardUtil } from './shapes/DocumentCardUtil'
 import type { CanvasResult } from '../lib/canvas-generator'
+import { MindMapGenerator } from './MindMapGenerator'
 
 interface ResearchCanvasProps {
   canvasData: CanvasResult
   onShapeClick?: (shapeId: string, props: any) => void
+  useMindMap?: boolean // NEW: Toggle between legacy shapes and new mind map
 }
 
 const customShapeUtils = [DocumentCardUtil]
 
-function CanvasLoader({ canvasData }: { canvasData: CanvasResult }) {
+function CanvasLoader({ canvasData, useMindMap }: { canvasData: CanvasResult; useMindMap?: boolean }) {
   const editor = useEditor()
   const loadedRef = useRef(false)
 
@@ -26,14 +26,26 @@ function CanvasLoader({ canvasData }: { canvasData: CanvasResult }) {
     if (loadedRef.current) return
     loadedRef.current = true
 
+    // If useMindMap is enabled and mindMapData exists, don't load legacy shapes
+    // The MindMapGenerator component will handle it
+    if (useMindMap && canvasData.mindMapData) {
+      console.log('✓ Using MindMapGenerator for canvas rendering')
+      console.log('  - Root text:', canvasData.mindMapData.text)
+      console.log('  - Themes:', canvasData.mindMapData.children?.length || 0)
+      return
+    }
+
+    console.log('✓ Using legacy shape-based rendering')
+    console.log('  - Shapes to create:', canvasData.shapes.length)
+
     try {
       // Clear existing shapes
-      const existingShapes = editor.getCurrentPageShapeIds()
+      const existingShapes = Array.from(editor.getCurrentPageShapeIds())
       if (existingShapes.length > 0) {
         editor.deleteShapes(existingShapes)
       }
 
-      // Create all shapes
+      // Create all shapes (legacy mode)
       const shapesToCreate = canvasData.shapes.map((shape) => {
         // Convert our shape format to TLDraw format
         const shapeId = createShapeId(shape.id)
@@ -104,28 +116,32 @@ function CanvasLoader({ canvasData }: { canvasData: CanvasResult }) {
       // Fit canvas to content
       editor.zoomToFit({ animation: { duration: 400 } })
 
-      console.log('✓ Canvas loaded:', {
+      console.log('✓ Canvas loaded (legacy mode):', {
         shapes: canvasData.shapes.length,
         themes: canvasData.themes.length,
       })
     } catch (error) {
       console.error('Failed to load canvas:', error)
     }
-  }, [editor, canvasData])
+  }, [editor, canvasData, useMindMap])
 
   return null
 }
 
-export function ResearchCanvas({ canvasData, onShapeClick }: ResearchCanvasProps) {
+export function ResearchCanvas({ canvasData, useMindMap = true }: ResearchCanvasProps) {
   return (
     <div className="w-full h-screen">
       <Tldraw
         shapeUtils={customShapeUtils}
-        onMount={(editor) => {
+        onMount={() => {
           console.log('TLDraw editor mounted')
         }}
       >
-        <CanvasLoader canvasData={canvasData} />
+        <CanvasLoader canvasData={canvasData} useMindMap={useMindMap} />
+        {/* Render MindMapGenerator if enabled and data is available */}
+        {useMindMap && canvasData.mindMapData && (
+          <MindMapGenerator data={canvasData.mindMapData} />
+        )}
       </Tldraw>
     </div>
   )

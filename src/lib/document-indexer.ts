@@ -1,9 +1,8 @@
 import { OpenAIEmbeddings } from '@langchain/openai'
 import { Chroma } from '@langchain/community/vectorstores/chroma'
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
-import { Document } from '@langchain/core/documents'
+import type { Document } from '@langchain/core/documents'
 import type { VectorStore } from '@langchain/core/vectorstores'
-import { ChromaClient } from 'chromadb'
 
 export interface DocumentMetadata {
   source: string
@@ -23,10 +22,14 @@ export class DocumentIndexer {
   private vectorStore: VectorStore | null = null
   private embeddings: OpenAIEmbeddings | null = null
   private documents: Map<string, IndexedDocument> = new Map()
-  private chromaClient: ChromaClient | null = null
   private collectionName = 'cosmic-canvas-documents'
+  private initialized = false
 
-  async initialize(apiKey?: string, chromaUrl = 'http://localhost:8000') {
+  async initialize(apiKey?: string, chromaUrl?: string) {
+    if (this.initialized && this.vectorStore) {
+      return
+    }
+
     if (!apiKey) {
       throw new Error('OpenAI API key is required')
     }
@@ -36,37 +39,38 @@ export class DocumentIndexer {
       modelName: 'text-embedding-3-large', // Latest embeddings model with 3072 dimensions
     })
 
-    // Parse chromaUrl to extract host and port
-    const url = new URL(chromaUrl)
-    const host = url.hostname
-    const port = parseInt(url.port) || 8000
+    const embeddings = this.embeddings
 
-    // Initialize Chroma client - connects to Chroma server
-    this.chromaClient = new ChromaClient({
-      host,
-      port,
-    })
+    const resolvedChromaUrl = (chromaUrl ?? process.env.CHROMA_URL ?? 'http://localhost:8000').trim()
 
-    // Create or get the collection
+    // Validate and normalize the URL so we provide clear feedback early
+    let parsedUrl: URL
+    try {
+      parsedUrl = new URL(resolvedChromaUrl)
+    } catch (_error) {
+      throw new Error(`Invalid CHROMA_URL provided: ${resolvedChromaUrl}`)
+    }
+
+    // Create or get the collection (let LangChain manage the Chroma client internally)
     this.vectorStore = await Chroma.fromExistingCollection(
-      this.embeddings,
+      embeddings,
       {
         collectionName: this.collectionName,
-        host,
-        port,
+        url: parsedUrl.toString(),
       }
     ).catch(async () => {
       // Collection doesn't exist, create it
       return await Chroma.fromDocuments(
         [], // Start with empty collection
-        this.embeddings,
+        embeddings,
         {
           collectionName: this.collectionName,
-          host,
-          port,
+          url: parsedUrl.toString(),
         }
       )
     })
+
+    this.initialized = true
   }
 
   async indexDocuments(docs: Array<{ content: string; metadata: DocumentMetadata }>) {
@@ -174,9 +178,14 @@ export class DocumentIndexer {
     return Array.from(this.documents.values())
   }
 
+  isReady() {
+    return this.initialized && this.vectorStore !== null
+  }
+
   clear() {
     this.documents.clear()
     this.vectorStore = null
+    this.initialized = false
   }
 }
 

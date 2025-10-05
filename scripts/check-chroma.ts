@@ -3,8 +3,25 @@
 import { ChromaClient } from 'chromadb'
 
 async function checkChroma() {
+  const chromaUrl = (process.env.CHROMA_URL ?? 'http://localhost:8000').trim()
+
+  let url: URL
+  try {
+    url = new URL(chromaUrl)
+  } catch (error) {
+    console.error(`❌ Invalid CHROMA_URL: ${chromaUrl}`)
+    if (error instanceof Error) {
+      console.error(error.message)
+    }
+    process.exit(1)
+  }
+
+  const portFromUrl = url.port ? Number(url.port) : url.protocol === 'https:' ? 443 : 8000
+
   const client = new ChromaClient({
-    path: 'http://localhost:8000',
+    host: url.hostname,
+    port: portFromUrl,
+    ssl: url.protocol === 'https:',
   })
 
   try {
@@ -29,8 +46,10 @@ async function checkChroma() {
       })
     }
   } catch (error) {
-    console.error(`❌ Error: ${error.message}`)
-    console.log('\nCollection does not exist or is empty')
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`❌ Error: ${message}`)
+    console.log('\nCollection does not exist yet or the Chroma server is empty.')
+    console.log('   - Start the app and index documents to populate the collection.')
   }
 }
 

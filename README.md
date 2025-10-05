@@ -29,6 +29,46 @@ npm run dev
 
 The app will be available at `http://localhost:3000`
 
+## Chroma Vector Database Setup
+
+Cosmic Canvas uses a persistent [Chroma](https://docs.trychroma.com/) vector database to store document embeddings. A Docker configuration is included so you can spin up a local instance quickly.
+
+### 1. Prepare your environment
+
+- Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Docker Compose v2 is required).
+- Copy the example environment file and add your secrets:
+
+```bash
+cp .env.example .env
+# Edit .env and set OPENAI_API_KEY (and optionally CHROMA_URL)
+```
+
+If you expose Chroma on a different host or port, update `CHROMA_URL` accordingly.
+
+### 2. Start Chroma
+
+```bash
+npm run chroma:start
+```
+
+This boots the container defined in `infra/chroma/docker-compose.yml` and persists data in the local `chroma_db/` directory (ignored by git).
+
+### 3. Verify the connection
+
+```bash
+npm run chroma:status
+```
+
+The script pings the collection `cosmic-canvas-documents` and reports the current document count. Once it succeeds, the app and CLI tools can index documents using the running Chroma instance.
+
+### 4. Shut Chroma down (optional)
+
+```bash
+npm run chroma:stop
+```
+
+For production deployments you can point `CHROMA_URL` at a managed Chroma service or another self-hosted deployment.
+
 ## Using Cosmic Canvas
 
 1. **Navigate to the Canvas**: Click "Open Cosmic Canvas" on the homepage or go to `/canvas`

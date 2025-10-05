@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResearchRouteImport } from './routes/research'
+import { Route as MindMapDemoRouteImport } from './routes/mind-map-demo'
 import { Route as DemoCanvasRouteImport } from './routes/demo-canvas'
 import { Route as CanvasRouteImport } from './routes/canvas'
 import { Route as IndexRouteImport } from './routes/index'
@@ -34,6 +35,11 @@ import { Route as DemoStartSsrDataOnlyRouteImport } from './routes/demo/start.ss
 const ResearchRoute = ResearchRouteImport.update({
   id: '/research',
   path: '/research',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MindMapDemoRoute = MindMapDemoRouteImport.update({
+  id: '/mind-map-demo',
+  path: '/mind-map-demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DemoCanvasRoute = DemoCanvasRouteImport.update({
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/canvas': typeof CanvasRoute
   '/demo-canvas': typeof DemoCanvasRoute
+  '/mind-map-demo': typeof MindMapDemoRoute
   '/research': typeof ResearchRoute
   '/api/canvas-data': typeof ApiCanvasDataRoute
   '/api/index-documents': typeof ApiIndexDocumentsRoute
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/canvas': typeof CanvasRoute
   '/demo-canvas': typeof DemoCanvasRoute
+  '/mind-map-demo': typeof MindMapDemoRoute
   '/research': typeof ResearchRoute
   '/api/canvas-data': typeof ApiCanvasDataRoute
   '/api/index-documents': typeof ApiIndexDocumentsRoute
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/canvas': typeof CanvasRoute
   '/demo-canvas': typeof DemoCanvasRoute
+  '/mind-map-demo': typeof MindMapDemoRoute
   '/research': typeof ResearchRoute
   '/api/canvas-data': typeof ApiCanvasDataRoute
   '/api/index-documents': typeof ApiIndexDocumentsRoute
@@ -213,6 +222,7 @@ export interface FileRouteTypes {
     | '/'
     | '/canvas'
     | '/demo-canvas'
+    | '/mind-map-demo'
     | '/research'
     | '/api/canvas-data'
     | '/api/index-documents'
@@ -236,6 +246,7 @@ export interface FileRouteTypes {
     | '/'
     | '/canvas'
     | '/demo-canvas'
+    | '/mind-map-demo'
     | '/research'
     | '/api/canvas-data'
     | '/api/index-documents'
@@ -259,6 +270,7 @@ export interface FileRouteTypes {
     | '/'
     | '/canvas'
     | '/demo-canvas'
+    | '/mind-map-demo'
     | '/research'
     | '/api/canvas-data'
     | '/api/index-documents'
@@ -283,6 +295,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CanvasRoute: typeof CanvasRoute
   DemoCanvasRoute: typeof DemoCanvasRoute
+  MindMapDemoRoute: typeof MindMapDemoRoute
   ResearchRoute: typeof ResearchRoute
   ApiCanvasDataRoute: typeof ApiCanvasDataRoute
   ApiIndexDocumentsRoute: typeof ApiIndexDocumentsRoute
@@ -310,6 +323,13 @@ declare module '@tanstack/react-router' {
       path: '/research'
       fullPath: '/research'
       preLoaderRoute: typeof ResearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mind-map-demo': {
+      id: '/mind-map-demo'
+      path: '/mind-map-demo'
+      fullPath: '/mind-map-demo'
+      preLoaderRoute: typeof MindMapDemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/demo-canvas': {
@@ -459,6 +479,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CanvasRoute: CanvasRoute,
   DemoCanvasRoute: DemoCanvasRoute,
+  MindMapDemoRoute: MindMapDemoRoute,
   ResearchRoute: ResearchRoute,
   ApiCanvasDataRoute: ApiCanvasDataRoute,
   ApiIndexDocumentsRoute: ApiIndexDocumentsRoute,

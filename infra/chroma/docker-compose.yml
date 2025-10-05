@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  chroma:
+    image: ghcr.io/chroma-core/chroma:latest
+    container_name: cosmic-canvas-chroma
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../../chroma_db:/chroma/chroma

@@ -12,6 +12,9 @@
     "test:academic": "tsx scripts/test-academic-research.ts",
     "ai-cli": "tsx scripts/ai-cli.ts",
     "index-all": "tsx scripts/index-all-documents.ts",
+    "chroma:start": "docker compose -f infra/chroma/docker-compose.yml up -d",
+    "chroma:stop": "docker compose -f infra/chroma/docker-compose.yml down",
+    "chroma:status": "tsx scripts/check-chroma.ts",
     "format": "biome format",
     "lint": "biome lint",
     "check": "biome check"

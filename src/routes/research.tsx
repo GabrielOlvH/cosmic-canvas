@@ -83,6 +83,11 @@ function ResearchPage() {
       console.log('✓ Canvas generated successfully:', data.canvas.stats)
       console.log('✓ Canvas shapes:', data.canvas.shapes?.length || 0)
       console.log('✓ Canvas themes:', data.canvas.themes?.length || 0)
+      console.log('✓ Mind map data:', data.canvas.mindMapData ? 'Present ✓' : 'Missing ✗')
+      if (data.canvas.mindMapData) {
+        console.log('  - Root text:', data.canvas.mindMapData.text)
+        console.log('  - Themes:', data.canvas.mindMapData.children?.length || 0)
+      }
 
       setCanvasData(data.canvas)
       setShowPanel(false) // Hide panel to show full canvas

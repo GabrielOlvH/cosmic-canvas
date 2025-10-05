@@ -17,7 +17,7 @@ export const Route = createFileRoute('/api/research-canvas')({
             })
           }
 
-          let body
+          let body: Record<string, unknown>
           try {
             body = JSON.parse(text)
           } catch (parseError) {
@@ -34,7 +34,10 @@ export const Route = createFileRoute('/api/research-canvas')({
             )
           }
 
-          const { query, verbose = false } = body
+          const { query, verbose = false } = body as {
+            query?: string
+            verbose?: boolean
+          }
 
           if (!query) {
             return new Response(JSON.stringify({ error: 'Query is required' }), {
@@ -59,9 +62,30 @@ export const Route = createFileRoute('/api/research-canvas')({
 
           // Initialize document indexer
           try {
-            await documentIndexer.initialize(openaiKey)
+            await documentIndexer.initialize(openaiKey, process.env.CHROMA_URL)
           } catch (error) {
-            // Already initialized, continue
+            console.error('❌ Failed to initialize document indexer:', error)
+            return new Response(
+              JSON.stringify({
+                error: 'Failed to initialize document indexer',
+                details: error instanceof Error ? error.message : String(error),
+              }),
+              {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+              }
+            )
+          }
+
+          if (!documentIndexer.isReady()) {
+            console.error('❌ Document indexer not ready after initialization attempt')
+            return new Response(
+              JSON.stringify({ error: 'Document indexer is not ready' }),
+              {
+                status: 500,
+                headers: { 'Content-Type': 'application/json' },
+              }
+            )
           }
 
           // Initialize research assistant
@@ -81,6 +105,17 @@ export const Route = createFileRoute('/api/research-canvas')({
             themes: canvas.themes.length,
             stats: canvas.stats,
           })
+          
+          // Log mindMapData status
+          if (canvas.mindMapData) {
+            console.log(`✓ Mind map data included:`, {
+              root: canvas.mindMapData.text,
+              themes: canvas.mindMapData.children.length,
+              totalFindings: canvas.mindMapData.children.reduce((sum, theme) => sum + theme.children.length, 0),
+            })
+          } else {
+            console.error('❌ WARNING: mindMapData is missing from canvas response!')
+          }
 
           // Validate that the canvas can be serialized to JSON
           let responseJson: string
@@ -110,7 +145,7 @@ export const Route = createFileRoute('/api/research-canvas')({
           if (responseObj.canvas.findings && typeof responseObj.canvas.findings !== 'object') {
             console.error('❌ Warning: findings is not an object:', typeof responseObj.canvas.findings)
           }
-          if (responseObj.canvas.hierarchy && responseObj.canvas.hierarchy.nodes && typeof responseObj.canvas.hierarchy.nodes !== 'object') {
+          if (responseObj.canvas.hierarchy?.nodes && typeof responseObj.canvas.hierarchy.nodes !== 'object') {
             console.error('❌ Warning: hierarchy.nodes is not an object:', typeof responseObj.canvas.hierarchy.nodes)
           }
 

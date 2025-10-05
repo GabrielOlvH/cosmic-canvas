@@ -4,6 +4,7 @@ import { LayoutCalculator, type MindMapHierarchy, type HierarchyNode } from './l
 import { ContentExtractor, type KeyFinding } from './content-extractor'
 import { createShapeId } from 'tldraw'
 import { toRichText } from 'tldraw'
+import type { MindMapNode } from '../components/MindMapGenerator'
 
 export interface CanvasGenerationOptions {
   verbose?: boolean
@@ -46,6 +47,7 @@ export interface CanvasResult {
     centerNodeId: string
   }
   findings?: Record<string, KeyFinding[]>
+  mindMapData?: MindMapNode // NEW: Mind map data structure for MindMapGenerator component
 }
 
 export class CanvasGenerator {
@@ -247,6 +249,20 @@ export class CanvasGenerator {
       hierarchyNodesObject[key] = value
     }
 
+    // Generate MindMapNode data structure for MindMapGenerator component
+    const mindMapData = this.convertToMindMapFormat(
+      researchQuestion,
+      themes,
+      findingsMap
+    )
+
+    if (verbose) {
+      console.log(`\n✓ Mind map data generated:`)
+      console.log(`  - Root text: "${mindMapData.text}"`)
+      console.log(`  - Themes: ${mindMapData.children.length}`)
+      console.log(`  - Total findings: ${mindMapData.children.reduce((sum, theme) => sum + theme.children.length, 0)}`)
+    }
+
     return {
       shapes,
       bindings,
@@ -264,6 +280,104 @@ export class CanvasGenerator {
         centerNodeId: hierarchy.centerNodeId,
       },
       findings: findingsObject,
+      mindMapData, // NEW: Mind map data for MindMapGenerator
+    }
+  }
+
+  /**
+   * Convert research data to MindMapNode format for MindMapGenerator component
+   * 
+   * Creates a hierarchical structure:
+   * - Level 0: Research question (center)
+   * - Level 1: Themes (main topics)
+   * - Level 2: Key findings (sub-topics)
+   */
+  private convertToMindMapFormat(
+    researchQuestion: string,
+    themes: Theme[],
+    findingsMap: Map<string, KeyFinding[]>
+  ): MindMapNode {
+    // GROUP FINDINGS BY DOCUMENT (STUDY)
+    const documentGroups = new Map<string, { findings: KeyFinding[], theme: Theme }>()
+    
+    for (const theme of themes) {
+      const findings = findingsMap.get(theme.id) || []
+      for (const finding of findings) {
+        if (!documentGroups.has(finding.documentId)) {
+          documentGroups.set(finding.documentId, { findings: [], theme })
+        }
+        documentGroups.get(finding.documentId)!.findings.push(finding)
+      }
+    }
+
+    // GROUP STUDIES BY THEME
+    const themeStudyMap = new Map<string, Array<{ documentId: string, findings: KeyFinding[] }>>()
+    
+    for (const [documentId, { findings, theme }] of documentGroups.entries()) {
+      if (!themeStudyMap.has(theme.id)) {
+        themeStudyMap.set(theme.id, [])
+      }
+      themeStudyMap.get(theme.id)!.push({ documentId, findings })
+    }
+
+    return {
+      id: 'root',
+      text: researchQuestion || 'Research Overview',
+      level: 0,
+      metadata: {
+        type: 'question',
+        description: 'Central research question'
+      },
+      children: themes.map((theme, themeIndex) => {
+        const studies = themeStudyMap.get(theme.id) || []
+        
+        // Take top 6 studies per sub-topic (for good spacing)
+        const topStudies = studies
+          .sort((a, b) => b.findings.length - a.findings.length)
+          .slice(0, 6)
+
+        return {
+          id: `subtopic-${themeIndex}`,
+          text: theme.name,
+          level: 1,
+          metadata: {
+            type: 'subtopic',
+            documentCount: studies.length,
+            description: theme.description || `${studies.length} related studies`
+          },
+          children: topStudies.map((study, studyIndex) => {
+            // Extract study metadata from document ID
+            const titleMatch = study.documentId.match(/^doc_\d+_(.+)\.pdf$/)
+            const studyTitle = titleMatch ? titleMatch[1].replace(/_/g, ' ').replace(/-/g, ' - ') : study.documentId
+            
+            // Take top 3 findings from this study
+            const topFindings = study.findings
+              .sort((a, b) => (b.importance || 0) - (a.importance || 0))
+              .slice(0, 3)
+
+            return {
+              id: `study-${themeIndex}-${studyIndex}`,
+              text: studyTitle,
+              level: 2,
+              metadata: {
+                type: 'study',
+                source: study.documentId,
+                findingCount: study.findings.length
+              },
+              children: topFindings.map((finding, findingIndex) => ({
+                id: `finding-${themeIndex}-${studyIndex}-${findingIndex}`,
+                text: finding.finding,
+                level: 3,
+                metadata: {
+                  type: 'finding',
+                  importance: finding.importance,
+                },
+                children: [],
+              })),
+            }
+          }),
+        }
+      }),
     }
   }
 
