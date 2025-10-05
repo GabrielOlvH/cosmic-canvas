@@ -28,6 +28,11 @@ export interface DocumentNode {
     title: string
     type: string
     timestamp: number
+    authors?: string
+    doi?: string
+    year?: number
+    journal?: string
+    url?: string
   }
   similarity: number // similarity to original query
 }

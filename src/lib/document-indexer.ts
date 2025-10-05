@@ -115,7 +115,12 @@ export class DocumentIndexer {
     }
   }
 
-  async search(query: string, k = 5) {
+  async search(query: string, k = 5): Promise<Array<{
+    content: string
+    metadata: DocumentMetadata
+    score: number
+    similarity: number
+  }>> {
     if (!this.vectorStore) {
       throw new Error('Indexer not initialized. Call initialize() first.')
     }
@@ -124,7 +129,7 @@ export class DocumentIndexer {
 
     return results.map(([doc, score]) => ({
       content: doc.pageContent,
-      metadata: doc.metadata,
+      metadata: doc.metadata as DocumentMetadata,
       score, // L2 squared distance (0-2 range for normalized vectors, lower = more similar)
       similarity: this.distanceToSimilarity(score), // Converted similarity score (0-1 range)
     }))

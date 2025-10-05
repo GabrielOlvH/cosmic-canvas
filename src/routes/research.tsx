@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ResearchCanvas } from '@/components/ResearchCanvas'
 import type { CanvasResult } from '@/lib/canvas-generator'
 
@@ -14,6 +14,24 @@ function ResearchPage() {
   const [error, setError] = useState<string | null>(null)
   const [showPanel, setShowPanel] = useState(true)
   const [statusMessage, setStatusMessage] = useState<string>('')
+
+  // Add beforeunload event listener to warn user before leaving
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only show warning if there's canvas data
+      if (canvasData) {
+        e.preventDefault()
+        e.returnValue = ''
+        return 'Você tem certeza que quer sair da página? Você perderá todo seu progresso.'
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [canvasData])
 
   const handleGenerateCanvas = async () => {
     if (!query.trim()) {

@@ -1,5 +1,5 @@
 import { ChatOpenAI } from '@langchain/openai'
-import type { DocumentIndexer } from './document-indexer'
+import type { DocumentIndexer, DocumentMetadata } from './document-indexer'
 
 export interface ExhaustiveSearchOptions {
   similarityThreshold?: number
@@ -10,7 +10,7 @@ export interface ExhaustiveSearchOptions {
 export interface ExhaustiveSearchResult {
   documents: Array<{
     content: string
-    metadata: any
+    metadata: DocumentMetadata
     similarity: number
   }>
   iterations: number

@@ -395,6 +395,11 @@ ${context}
         title: doc.metadata.title || doc.metadata.source,
         type: doc.metadata.type || 'document',
         timestamp: doc.metadata.timestamp || Date.now(),
+        authors: doc.metadata.authors,
+        doi: doc.metadata.doi,
+        year: doc.metadata.year,
+        journal: doc.metadata.journal,
+        url: doc.metadata.url,
       },
       similarity: doc.similarity,
     }))
@@ -407,6 +412,11 @@ ${context}
         title: doc.metadata.title || doc.metadata.source,
         type: doc.metadata.type || 'document',
         timestamp: doc.metadata.timestamp || Date.now(),
+        authors: doc.metadata.authors,
+        doi: doc.metadata.doi,
+        year: doc.metadata.year,
+        journal: doc.metadata.journal,
+        url: doc.metadata.url,
       },
       similarity: doc.similarity,
     }))

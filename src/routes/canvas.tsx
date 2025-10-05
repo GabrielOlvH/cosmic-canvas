@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DocumentCanvas } from '@/components/DocumentCanvas'
 import '@/styles/space-theme.css'
 
@@ -28,6 +28,24 @@ function CanvasPage() {
   const [query, setQuery] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [nodes, setNodes] = useState<CanvasNode[]>([])
+
+  // Add beforeunload event listener to warn user before leaving
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only show warning if there are nodes
+      if (nodes.length > 0) {
+        e.preventDefault()
+        e.returnValue = ''
+        return 'Você tem certeza que quer sair da página? Você perderá todo seu progresso.'
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [nodes])
   const [edges, setEdges] = useState<CanvasEdge[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

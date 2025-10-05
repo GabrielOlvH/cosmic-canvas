@@ -136,3 +136,13 @@ code {
     @apply bg-background text-foreground;
   }
 }
+
+/* Mind Map - Clickable study nodes */
+.tl-shape[data-clickable="true"] {
+  cursor: pointer !important;
+}
+
+.tl-shape[data-clickable="true"]:hover {
+  filter: brightness(1.1);
+  transition: filter 0.2s ease;
+}

@@ -18,6 +18,11 @@ export interface MindMapNode {
     source?: string
     importance?: number
     evidence?: string
+    findingCount?: number
+    authors?: string
+    doi?: string
+    year?: number
+    url?: string
   }
 }
 
@@ -61,11 +66,11 @@ const LAYOUT_CONFIG = {
     height: 140,
     padding: 50,
   },
-  STUDY_NODE: { // Level 2: Study titles
+  STUDY_NODE: { // Level 2: Study titles with authors and link
     baseWidth: 320,
     minWidth: 280,
     maxWidth: 500,
-    height: 120,
+    height: 180, // Increased to accommodate title + authors + year + link
     padding: 45,
   },
   FINDING_NODE: { // Level 3: Key findings
@@ -117,6 +122,51 @@ const THEME_COLORS = [
  */
 export const MindMapGenerator: React.FC<MindMapGeneratorProps> = ({ data }) => {
   const editor = useEditor()
+
+  // Handle clicks on study nodes to open article links
+  useEffect(() => {
+    if (!editor) return
+
+    const handleShapeClick = () => {
+      const selectedShapes = editor.getSelectedShapes()
+      if (selectedShapes.length !== 1) return
+
+      const shape = selectedShapes[0]
+      const shapeId = shape.id
+
+      // Find the corresponding node in the data tree
+      const findNodeById = (node: MindMapNode, targetId: string): MindMapNode | null => {
+        const shapeIdForNode = `shape:${node.id}`
+        if (shapeIdForNode === shapeId) return node
+        
+        for (const child of node.children) {
+          const found = findNodeById(child, targetId)
+          if (found) return found
+        }
+        return null
+      }
+
+      const clickedNode = findNodeById(data, shapeId)
+      
+      // If it's a study node (level 2) with a URL, open it
+      if (clickedNode && clickedNode.level === 2 && clickedNode.metadata?.url) {
+        window.open(clickedNode.metadata.url, '_blank', 'noopener,noreferrer')
+        console.log('🔗 Opening article:', clickedNode.text, clickedNode.metadata.url)
+      }
+    }
+
+    // Listen to pointer up events (click)
+    const handlePointerUp = () => {
+      setTimeout(handleShapeClick, 50) // Small delay to ensure selection is updated
+    }
+
+    editor.on('event', (event) => {
+      if (event.type === 'pointer' && event.name === 'pointer_up') {
+        handlePointerUp()
+      }
+    })
+
+  }, [editor, data])
 
   useEffect(() => {
     if (!editor || !data) return
@@ -401,6 +451,24 @@ function generateTldrawShapes(tree: PositionedNode) {
       })
     } else if (node.level === 2) {
       // LEVEL 2: STUDIES (titles + authors) - Medium rectangles with pattern fill
+      // Format text with title, authors, and link indicator
+      let displayText = node.text
+      
+      // Add authors if available
+      if (node.metadata?.authors) {
+        displayText += `\n${node.metadata.authors}`
+      }
+      
+      // Add year if available
+      if (node.metadata?.year) {
+        displayText += ` (${node.metadata.year})`
+      }
+      
+      // Add link indicator if URL is available
+      if (node.metadata?.url) {
+        displayText += '\n\n🔗 Click to open article'
+      }
+      
       shapes.push({
         id: shapeId,
         type: 'geo',
@@ -414,7 +482,7 @@ function generateTldrawShapes(tree: PositionedNode) {
           color: 'light-blue',
           font: 'sans',
           size: 'm',
-          richText: toRichText(node.text),
+          richText: toRichText(displayText),
           align: 'middle',
           verticalAlign: 'middle',
           dash: 'draw',

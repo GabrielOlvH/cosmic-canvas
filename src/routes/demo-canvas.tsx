@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import { DocumentCanvas } from '@/components/DocumentCanvas'
 
 export const Route = createFileRoute('/demo-canvas')({
@@ -10,6 +11,21 @@ export const Route = createFileRoute('/demo-canvas')({
  * Shows the space theme with various planet types and connections
  */
 function DemoCanvasPage() {
+  // Add beforeunload event listener to warn user before leaving
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+      return 'Você tem certeza que quer sair da página? Você perderá todo seu progresso.'
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [])
+
   // Mock data representing different types of documents with varying relevance scores
   const mockNodes = [
     {

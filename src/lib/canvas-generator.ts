@@ -253,7 +253,8 @@ export class CanvasGenerator {
     const mindMapData = this.convertToMindMapFormat(
       researchQuestion,
       themes,
-      findingsMap
+      findingsMap,
+      documents
     )
 
     if (verbose) {
@@ -284,19 +285,27 @@ export class CanvasGenerator {
     }
   }
 
-  /**
-   * Convert research data to MindMapNode format for MindMapGenerator component
+    /**
+   * Convert extracted findings into MindMapNode format
    * 
    * Creates a hierarchical structure:
    * - Level 0: Research question (center)
    * - Level 1: Themes (main topics)
-   * - Level 2: Key findings (sub-topics)
+   * - Level 2: Studies (documents)
+   * - Level 3: Key findings (sub-topics)
    */
   private convertToMindMapFormat(
     researchQuestion: string,
     themes: Theme[],
-    findingsMap: Map<string, KeyFinding[]>
+    findingsMap: Map<string, KeyFinding[]>,
+    documents: DocumentNode[]
   ): MindMapNode {
+    // Create a map of documentId -> document for quick lookup
+    const documentMap = new Map<string, DocumentNode>()
+    for (const doc of documents) {
+      documentMap.set(doc.metadata.source, doc)
+    }
+    
     // GROUP FINDINGS BY DOCUMENT (STUDY)
     const documentGroups = new Map<string, { findings: KeyFinding[], theme: Theme }>()
     
@@ -346,9 +355,13 @@ export class CanvasGenerator {
             description: theme.description || `${studies.length} related studies`
           },
           children: topStudies.map((study, studyIndex) => {
-            // Extract study metadata from document ID
-            const titleMatch = study.documentId.match(/^doc_\d+_(.+)\.pdf$/)
-            const studyTitle = titleMatch ? titleMatch[1].replace(/_/g, ' ').replace(/-/g, ' - ') : study.documentId
+            // Get document metadata from the original documents
+            const document = documentMap.get(study.documentId)
+            const studyTitle = document?.metadata?.title || study.documentId
+            const studyAuthors = document?.metadata?.authors
+            const studyUrl = document?.metadata?.url
+            const studyDoi = document?.metadata?.doi
+            const studyYear = document?.metadata?.year
             
             // Take top 3 findings from this study
             const topFindings = study.findings
@@ -363,9 +376,10 @@ export class CanvasGenerator {
                 type: 'study',
                 source: study.documentId,
                 findingCount: study.findings.length,
-                // Extract metadata from the first finding's document
-                authors: topFindings[0]?.documentId ? undefined : undefined, // Will be populated from document metadata
-                doi: topFindings[0]?.documentId ? undefined : undefined,
+                authors: studyAuthors,
+                doi: studyDoi,
+                year: studyYear,
+                url: studyUrl,
               },
               children: topFindings.map((finding, findingIndex) => ({
                 id: `finding-${themeIndex}-${studyIndex}-${findingIndex}`,

@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import { Tldraw } from 'tldraw'
 import 'tldraw/tldraw.css'
 import { MindMapGenerator, type MindMapNode } from '@/components/MindMapGenerator'
@@ -168,6 +169,24 @@ const sampleMindMapData: MindMapNode = {
 }
 
 function MindMapDemoPage() {
+  // Add beforeunload event listener to warn user before leaving
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      // Modern browsers require returnValue to be set
+      e.returnValue = ''
+      // Custom message is not shown in modern browsers for security reasons,
+      // but a generic browser message will appear
+      return 'Você tem certeza que quer sair da página? Você perderá todo seu progresso.'
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [])
+
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}

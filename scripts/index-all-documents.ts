@@ -20,6 +20,12 @@ async function indexAllDocuments() {
   console.log(`${colors.cyan}║           📚 FULL DOCUMENT INDEXING 📚               ║${colors.reset}`)
   console.log(`${colors.cyan}╚═══════════════════════════════════════════════════════╝${colors.reset}\n`)
 
+  // Check if we should force re-indexing (skip tracker checks)
+  const forceReindex = process.argv.includes('--force')
+  if (forceReindex) {
+    console.log(`${colors.yellow}⚠️  FORCE MODE: Will re-index all documents regardless of tracker${colors.reset}\n`)
+  }
+
   const openaiKey = process.env.OPENAI_API_KEY
 
   if (!openaiKey) {
@@ -55,7 +61,7 @@ async function indexAllDocuments() {
   for (const doc of allDocs) {
     const hash = documentTracker.calculateHash(doc.content)
 
-    if (documentTracker.needsIndexing(doc.metadata.filePath, hash)) {
+    if (forceReindex || documentTracker.needsIndexing(doc.metadata.filePath, hash)) {
       docsToIndex.push({
         content: doc.content,
         metadata: {
@@ -63,6 +69,11 @@ async function indexAllDocuments() {
           title: doc.metadata.title,
           type: doc.metadata.type,
           timestamp: doc.metadata.timestamp,
+          authors: doc.metadata.authors,
+          doi: doc.metadata.doi,
+          year: doc.metadata.year,
+          journal: doc.metadata.journal,
+          url: doc.metadata.url,
         },
         filePath: doc.metadata.filePath,
         hash,
@@ -118,9 +129,7 @@ async function indexAllDocuments() {
   const finalStats = documentTracker.getStats()
   console.log(`${colors.cyan}📊 Final Statistics:${colors.reset}`)
   console.log(`  Total tracked documents: ${finalStats.total}`)
-  console.log(`  New: ${finalStats.new}`)
-  console.log(`  Modified: ${finalStats.modified}`)
-  console.log(`  Unchanged: ${finalStats.unchanged}\n`)
+  console.log(`  Total chunks: ${finalStats.totalChunks}\n`)
 }
 
 indexAllDocuments().catch(error => {
