@@ -31,8 +31,9 @@ export interface MindMapHierarchy {
 export class LayoutCalculator {
   // Mind map layout constants
   private readonly CENTER_RADIUS = 800 // Distance from center to level 1 (themes)
-  private readonly LEVEL_SPACING = 600 // Distance between each level
+  private readonly LEVEL_SPACING = 900 // Distance between each level (increased for better spacing)
   private readonly MIN_ANGULAR_SPACING = 15 // Minimum degrees between siblings
+  private readonly MIN_DISTANCE = 550 // Minimum distance between any two nodes
   private readonly CENTER_NODE_SIZE = { width: 600, height: 200 }
   private readonly THEME_NODE_SIZE = { width: 500, height: 180 }
   private readonly FINDING_NODE_SIZE = { width: 450, height: 280 }
@@ -86,6 +87,7 @@ export class LayoutCalculator {
 
   /**
    * Layout Level 2: Findings branching from each theme
+   * Uses ARC-LENGTH based spacing for even distribution
    */
   private layoutLevel2_Findings(
     nodes: Map<string, HierarchyNode>,
@@ -101,17 +103,21 @@ export class LayoutCalculator {
       // Calculate angle from center to this theme
       const themeAngle = Math.atan2(themePos.y, themePos.x)
 
-      // Calculate angular range for findings (spread them in an arc)
+      // ARC-LENGTH based spacing: calculate required arc to fit all findings
       const findingCount = node.children.length
-      const arcSpan = Math.min(60, findingCount * 20) // Max 60° arc, or 20° per finding
+      const radius = this.CENTER_RADIUS + this.LEVEL_SPACING
+      const nodeWidth = 500 // approximate width of finding node
+      const minArcLength = nodeWidth * 1.3 // 30% padding between nodes
+      const requiredArcLength = minArcLength * findingCount
+      const arcSpan = (requiredArcLength / radius) * (180 / Math.PI) // Convert to degrees
+      const cappedArcSpan = Math.min(120, arcSpan) // Cap at 120° to prevent overlap with adjacent themes
 
       node.children.forEach((findingId, index) => {
-        // Spread findings in an arc around the theme's radial direction
-        const offsetAngle = arcSpan / 2 - (index / (findingCount - 1 || 1)) * arcSpan
+        // Evenly distribute findings across the arc
+        const offsetAngle = cappedArcSpan / 2 - (index / (findingCount - 1 || 1)) * cappedArcSpan
         const findingAngle = themeAngle + (offsetAngle * Math.PI) / 180
 
         // Position at next radius level
-        const radius = this.CENTER_RADIUS + this.LEVEL_SPACING
         const x = Math.cos(findingAngle) * radius
         const y = Math.sin(findingAngle) * radius
 
@@ -122,6 +128,7 @@ export class LayoutCalculator {
 
   /**
    * Layout Level 3: Documents branching from findings
+   * Uses ARC-LENGTH based spacing for even distribution
    */
   private layoutLevel3_Documents(
     nodes: Map<string, HierarchyNode>,
@@ -137,17 +144,21 @@ export class LayoutCalculator {
       // Calculate angle from center to this finding
       const findingAngle = Math.atan2(findingPos.y, findingPos.x)
 
-      // Calculate angular range for documents
+      // ARC-LENGTH based spacing: calculate required arc to fit all documents
       const docCount = node.children.length
-      const arcSpan = Math.min(45, docCount * 15) // Max 45° arc
+      const radius = this.CENTER_RADIUS + this.LEVEL_SPACING * 2
+      const nodeWidth = 460 // approximate width of document node
+      const minArcLength = nodeWidth * 1.3 // 30% padding between nodes
+      const requiredArcLength = minArcLength * docCount
+      const arcSpan = (requiredArcLength / radius) * (180 / Math.PI) // Convert to degrees
+      const cappedArcSpan = Math.min(100, arcSpan) // Cap at 100° to prevent overlap
 
       node.children.forEach((docId, index) => {
-        // Spread documents in an arc
-        const offsetAngle = arcSpan / 2 - (index / (docCount - 1 || 1)) * arcSpan
+        // Evenly distribute documents across the arc
+        const offsetAngle = cappedArcSpan / 2 - (index / (docCount - 1 || 1)) * cappedArcSpan
         const docAngle = findingAngle + (offsetAngle * Math.PI) / 180
 
         // Position at outermost radius level
-        const radius = this.CENTER_RADIUS + this.LEVEL_SPACING * 2
         const x = Math.cos(docAngle) * radius
         const y = Math.sin(docAngle) * radius
 
