@@ -15,30 +15,177 @@ export interface LayoutResult {
   bounds: { width: number; height: number }
 }
 
+export interface HierarchyNode {
+  id: string
+  level: number // 0=center, 1=theme, 2=finding, 3=document
+  parentId?: string
+  children: string[]
+  importance?: number // For ordering within level
+}
+
+export interface MindMapHierarchy {
+  nodes: Map<string, HierarchyNode>
+  centerNodeId: string
+}
+
 export class LayoutCalculator {
-  private readonly REPULSION_STRENGTH = 100
-  private readonly ATTRACTION_STRENGTH = 0.1
-  private readonly THEME_ATTRACTION_STRENGTH = 0.05
-  private readonly DAMPING = 0.9
-  private readonly MIN_DISTANCE = 350 // Minimum distance between nodes
-  private readonly CANVAS_WIDTH = 5000
-  private readonly CANVAS_HEIGHT = 5000
+  // Mind map layout constants
+  private readonly CENTER_RADIUS = 800 // Distance from center to level 1 (themes)
+  private readonly LEVEL_SPACING = 600 // Distance between each level
+  private readonly MIN_ANGULAR_SPACING = 15 // Minimum degrees between siblings
+  private readonly CENTER_NODE_SIZE = { width: 600, height: 200 }
+  private readonly THEME_NODE_SIZE = { width: 500, height: 180 }
+  private readonly FINDING_NODE_SIZE = { width: 450, height: 280 }
+  private readonly DOCUMENT_NODE_SIZE = { width: 450, height: 280 }
 
   /**
-   * Calculate force-directed layout for document nodes
+   * HIERARCHICAL RADIAL LAYOUT - Proper mind map structure
+   * Replaces the scattered force-directed layout with organized radial hierarchy
+   */
+  calculateHierarchicalRadialLayout(hierarchy: MindMapHierarchy): Map<string, { x: number; y: number }> {
+    const positions = new Map<string, { x: number; y: number }>()
+
+    // Level 0: Center node at origin
+    const centerNode = hierarchy.nodes.get(hierarchy.centerNodeId)
+    if (!centerNode) {
+      throw new Error('Center node not found in hierarchy')
+    }
+
+    positions.set(hierarchy.centerNodeId, { x: 0, y: 0 })
+
+    // Process each level radially outward
+    this.layoutLevel1_Themes(centerNode, hierarchy.nodes, positions)
+    this.layoutLevel2_Findings(hierarchy.nodes, positions)
+    this.layoutLevel3_Documents(hierarchy.nodes, positions)
+
+    return positions
+  }
+
+  /**
+   * Layout Level 1: Main themes radiating from center
+   */
+  private layoutLevel1_Themes(
+    centerNode: HierarchyNode,
+    nodes: Map<string, HierarchyNode>,
+    positions: Map<string, { x: number; y: number }>
+  ) {
+    const themeIds = centerNode.children
+    if (themeIds.length === 0) return
+
+    // Distribute themes evenly around center (360°)
+    const angleStep = 360 / themeIds.length
+
+    themeIds.forEach((themeId, index) => {
+      const angle = (index * angleStep * Math.PI) / 180 // Convert to radians
+      const x = Math.cos(angle) * this.CENTER_RADIUS
+      const y = Math.sin(angle) * this.CENTER_RADIUS
+
+      positions.set(themeId, { x, y })
+    })
+  }
+
+  /**
+   * Layout Level 2: Findings branching from each theme
+   */
+  private layoutLevel2_Findings(
+    nodes: Map<string, HierarchyNode>,
+    positions: Map<string, { x: number; y: number }>
+  ) {
+    // For each theme node
+    for (const [nodeId, node] of nodes.entries()) {
+      if (node.level !== 1) continue // Only process theme nodes
+
+      const themePos = positions.get(nodeId)
+      if (!themePos || node.children.length === 0) continue
+
+      // Calculate angle from center to this theme
+      const themeAngle = Math.atan2(themePos.y, themePos.x)
+
+      // Calculate angular range for findings (spread them in an arc)
+      const findingCount = node.children.length
+      const arcSpan = Math.min(60, findingCount * 20) // Max 60° arc, or 20° per finding
+
+      node.children.forEach((findingId, index) => {
+        // Spread findings in an arc around the theme's radial direction
+        const offsetAngle = arcSpan / 2 - (index / (findingCount - 1 || 1)) * arcSpan
+        const findingAngle = themeAngle + (offsetAngle * Math.PI) / 180
+
+        // Position at next radius level
+        const radius = this.CENTER_RADIUS + this.LEVEL_SPACING
+        const x = Math.cos(findingAngle) * radius
+        const y = Math.sin(findingAngle) * radius
+
+        positions.set(findingId, { x, y })
+      })
+    }
+  }
+
+  /**
+   * Layout Level 3: Documents branching from findings
+   */
+  private layoutLevel3_Documents(
+    nodes: Map<string, HierarchyNode>,
+    positions: Map<string, { x: number; y: number }>
+  ) {
+    // For each finding node
+    for (const [nodeId, node] of nodes.entries()) {
+      if (node.level !== 2) continue // Only process finding nodes
+
+      const findingPos = positions.get(nodeId)
+      if (!findingPos || node.children.length === 0) continue
+
+      // Calculate angle from center to this finding
+      const findingAngle = Math.atan2(findingPos.y, findingPos.x)
+
+      // Calculate angular range for documents
+      const docCount = node.children.length
+      const arcSpan = Math.min(45, docCount * 15) // Max 45° arc
+
+      node.children.forEach((docId, index) => {
+        // Spread documents in an arc
+        const offsetAngle = arcSpan / 2 - (index / (docCount - 1 || 1)) * arcSpan
+        const docAngle = findingAngle + (offsetAngle * Math.PI) / 180
+
+        // Position at outermost radius level
+        const radius = this.CENTER_RADIUS + this.LEVEL_SPACING * 2
+        const x = Math.cos(docAngle) * radius
+        const y = Math.sin(docAngle) * radius
+
+        positions.set(docId, { x, y })
+      })
+    }
+  }
+
+  /**
+   * DEPRECATED: Old force-directed layout (keeping for backward compatibility)
+   * Use calculateHierarchicalRadialLayout instead
    */
   calculateForceDirectedLayout(
     documents: DocumentNode[],
     edges: DocumentEdge[],
-    iterations = 100
+    iterations = 300
   ): Map<string, { x: number; y: number }> {
-    // Initialize positions randomly
-    const nodes = this.initializePositions(documents)
-
-    // Run simulation
-    for (let i = 0; i < iterations; i++) {
-      this.simulationStep(nodes, edges)
+    if (documents.length === 0) {
+      return new Map()
     }
+
+    // Calculate optimal distance (k) - smaller k for tighter layout
+    const k = 200 // Fixed optimal distance between nodes
+
+    // Initialize positions near origin for better viewport fit
+    const nodes = this.initializePositionsCompact(documents, k)
+
+    // Initial temperature
+    const initialTemp = k * 3
+
+    // Run simulation with cooling
+    for (let i = 0; i < iterations; i++) {
+      const temp = initialTemp * (1 - i / iterations) // Linear cooling
+      this.fruchtermanReingoldStep(nodes, edges, k, temp)
+    }
+
+    // Center the layout around (0, 0)
+    this.centerLayout(nodes)
 
     // Convert to position map
     const positions = new Map<string, { x: number; y: number }>()
@@ -50,113 +197,157 @@ export class LayoutCalculator {
   }
 
   /**
-   * Initialize node positions randomly
+   * Initialize node positions in a grid pattern with some randomness
    */
-  private initializePositions(documents: DocumentNode[]): NodePosition[] {
-    return documents.map(doc => ({
-      id: doc.metadata.source,
-      x: Math.random() * this.CANVAS_WIDTH,
-      y: Math.random() * this.CANVAS_HEIGHT,
-      vx: 0,
-      vy: 0,
-    }))
+  private initializePositionsGrid(documents: DocumentNode[]): NodePosition[] {
+    const gridSize = Math.ceil(Math.sqrt(documents.length))
+    const cellWidth = this.CANVAS_WIDTH / gridSize
+    const cellHeight = this.CANVAS_HEIGHT / gridSize
+
+    return documents.map((doc, i) => {
+      const row = Math.floor(i / gridSize)
+      const col = i % gridSize
+
+      // Position in center of grid cell with small random offset
+      const x = col * cellWidth + cellWidth / 2 + (Math.random() - 0.5) * cellWidth * 0.3
+      const y = row * cellHeight + cellHeight / 2 + (Math.random() - 0.5) * cellHeight * 0.3
+
+      return {
+        id: doc.metadata.source,
+        x: Math.max(0, Math.min(this.CANVAS_WIDTH, x)),
+        y: Math.max(0, Math.min(this.CANVAS_HEIGHT, y)),
+        vx: 0,
+        vy: 0,
+      }
+    })
   }
 
   /**
-   * Single simulation step
+   * Initialize positions in a compact grid near origin
    */
-  private simulationStep(nodes: NodePosition[], edges: DocumentEdge[]) {
-    // Reset forces
-    for (const node of nodes) {
-      node.vx = 0
-      node.vy = 0
-    }
+  private initializePositionsCompact(documents: DocumentNode[], k: number): NodePosition[] {
+    const gridSize = Math.ceil(Math.sqrt(documents.length))
+    const cellSize = k * 1.5 // Cell size based on optimal distance
 
-    // Apply repulsion between all nodes
+    return documents.map((doc, i) => {
+      const row = Math.floor(i / gridSize)
+      const col = i % gridSize
+
+      // Center the grid around origin with small random offset
+      const x = (col - gridSize / 2) * cellSize + (Math.random() - 0.5) * cellSize * 0.3
+      const y = (row - gridSize / 2) * cellSize + (Math.random() - 0.5) * cellSize * 0.3
+
+      return {
+        id: doc.metadata.source,
+        x,
+        y,
+        vx: 0,
+        vy: 0,
+      }
+    })
+  }
+
+  /**
+   * Center layout around origin (0, 0)
+   */
+  private centerLayout(nodes: NodePosition[]) {
+    if (nodes.length === 0) return
+
+    // Calculate center of mass
+    let sumX = 0
+    let sumY = 0
+    for (const node of nodes) {
+      sumX += node.x
+      sumY += node.y
+    }
+    const centerX = sumX / nodes.length
+    const centerY = sumY / nodes.length
+
+    // Shift all nodes to center around origin
+    for (const node of nodes) {
+      node.x -= centerX
+      node.y -= centerY
+    }
+  }
+
+  /**
+   * Fruchterman-Reingold algorithm step with temperature cooling
+   */
+  private fruchtermanReingoldStep(
+    nodes: NodePosition[],
+    edges: DocumentEdge[],
+    k: number,
+    temperature: number
+  ) {
+    // Calculate repulsive forces (all pairs of nodes)
     for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        this.applyRepulsion(nodes[i], nodes[j])
+      nodes[i].vx = 0
+      nodes[i].vy = 0
+
+      for (let j = 0; j < nodes.length; j++) {
+        if (i === j) continue
+
+        const dx = nodes[i].x - nodes[j].x
+        const dy = nodes[i].y - nodes[j].y
+        const distance = Math.sqrt(dx * dx + dy * dy) || 1 // Avoid division by zero
+
+        // Repulsive force: fr(d) = k² / d
+        const repulsiveForce = (k * k) / distance
+
+        const fx = (dx / distance) * repulsiveForce
+        const fy = (dy / distance) * repulsiveForce
+
+        nodes[i].vx += fx
+        nodes[i].vy += fy
       }
     }
 
-    // Apply attraction along edges
+    // Calculate attractive forces (connected nodes)
     for (const edge of edges) {
       const source = nodes.find(n => n.id === edge.source)
       const target = nodes.find(n => n.id === edge.target)
 
-      if (source && target) {
-        this.applyAttraction(source, target, edge)
+      if (!source || !target) continue
+
+      const dx = target.x - source.x
+      const dy = target.y - source.y
+      const distance = Math.sqrt(dx * dx + dy * dy) || 1
+
+      // Attractive force: fa(d) = d² / k
+      let attractiveForce = (distance * distance) / k
+
+      // Adjust attraction by edge type
+      if (edge.type === 'semantic') {
+        attractiveForce *= edge.similarity // Stronger for similar docs
+      } else if (edge.type === 'citation') {
+        attractiveForce *= 1.5
+      } else if (edge.type === 'contradiction') {
+        attractiveForce *= 0.8
       }
+
+      const fx = (dx / distance) * attractiveForce
+      const fy = (dy / distance) * attractiveForce
+
+      source.vx += fx
+      source.vy += fy
+      target.vx -= fx
+      target.vy -= fy
     }
 
-    // Update positions
+    // Apply temperature-limited displacement
     for (const node of nodes) {
-      node.x += node.vx * this.DAMPING
-      node.y += node.vy * this.DAMPING
+      const displacement = Math.sqrt(node.vx * node.vx + node.vy * node.vy) || 1
+
+      // Limit displacement to temperature
+      const limitedDisplacement = Math.min(displacement, temperature)
+
+      node.x += (node.vx / displacement) * limitedDisplacement
+      node.y += (node.vy / displacement) * limitedDisplacement
 
       // Keep within bounds
-      node.x = Math.max(0, Math.min(this.CANVAS_WIDTH, node.x))
-      node.y = Math.max(0, Math.min(this.CANVAS_HEIGHT, node.y))
+      node.x = Math.max(50, Math.min(this.CANVAS_WIDTH - 50, node.x))
+      node.y = Math.max(50, Math.min(this.CANVAS_HEIGHT - 50, node.y))
     }
-  }
-
-  /**
-   * Apply repulsion force between two nodes (Coulomb's law)
-   */
-  private applyRepulsion(nodeA: NodePosition, nodeB: NodePosition) {
-    const dx = nodeB.x - nodeA.x
-    const dy = nodeB.y - nodeA.y
-    const distanceSquared = dx * dx + dy * dy
-    const distance = Math.sqrt(distanceSquared)
-
-    if (distance < 0.1) return // Avoid division by zero
-
-    // Repulsion force (inverse square law)
-    const force = this.REPULSION_STRENGTH / distanceSquared
-
-    const fx = (dx / distance) * force
-    const fy = (dy / distance) * force
-
-    nodeA.vx -= fx
-    nodeA.vy -= fy
-    nodeB.vx += fx
-    nodeB.vy += fy
-  }
-
-  /**
-   * Apply attraction force along an edge (Hooke's law)
-   */
-  private applyAttraction(
-    nodeA: NodePosition,
-    nodeB: NodePosition,
-    edge: DocumentEdge
-  ) {
-    const dx = nodeB.x - nodeA.x
-    const dy = nodeB.y - nodeA.y
-    const distance = Math.sqrt(dx * dx + dy * dy)
-
-    if (distance < 0.1) return
-
-    // Attraction strength varies by edge type
-    let strength = this.ATTRACTION_STRENGTH
-
-    if (edge.type === 'semantic') {
-      strength *= edge.similarity // Stronger for more similar documents
-    } else if (edge.type === 'citation') {
-      strength *= 1.5 // Citations create stronger bonds
-    } else if (edge.type === 'contradiction') {
-      strength *= 0.5 // Contradictions have weaker attraction
-    }
-
-    const force = distance * strength
-
-    const fx = (dx / distance) * force
-    const fy = (dy / distance) * force
-
-    nodeA.vx += fx
-    nodeA.vy += fy
-    nodeB.vx -= fx
-    nodeB.vy -= fy
   }
 
   /**
@@ -211,9 +402,11 @@ export class LayoutCalculator {
         const dx = themeCenter.x - pos.x
         const dy = themeCenter.y - pos.y
 
+        // Very subtle theme grouping - just nudge nodes slightly toward theme center
+        const THEME_STRENGTH = 0.1
         adjustedPositions.set(docId, {
-          x: pos.x + dx * this.THEME_ATTRACTION_STRENGTH,
-          y: pos.y + dy * this.THEME_ATTRACTION_STRENGTH,
+          x: pos.x + dx * THEME_STRENGTH,
+          y: pos.y + dy * THEME_STRENGTH,
         })
       } else {
         adjustedPositions.set(docId, pos)
@@ -267,22 +460,26 @@ export class LayoutCalculator {
   }
 
   /**
-   * Main method: calculate complete layout
+   * Main method: calculate complete layout using HIERARCHICAL MIND MAP structure
    */
   calculateLayout(
     documents: DocumentNode[],
     edges: DocumentEdge[],
     themes: Theme[],
-    themeMap: DocumentThemeMap
+    themeMap: DocumentThemeMap,
+    hierarchy?: MindMapHierarchy // New parameter for mind map hierarchy
   ): LayoutResult {
-    // Step 1: Force-directed layout
-    let positions = this.calculateForceDirectedLayout(documents, edges, 100)
+    let positions: Map<string, { x: number; y: number }>
 
-    // Step 2: Theme grouping
-    positions = this.applyThemeGrouping(positions, themes, themeMap)
-
-    // Step 3: Optimize spacing
-    positions = this.optimizeSpacing(positions)
+    if (hierarchy) {
+      // NEW: Use hierarchical radial layout for proper mind map
+      positions = this.calculateHierarchicalRadialLayout(hierarchy)
+    } else {
+      // FALLBACK: Use old force-directed layout
+      positions = this.calculateForceDirectedLayout(documents, edges, 300)
+      positions = this.applyThemeGrouping(positions, themes, themeMap)
+      positions = this.optimizeSpacing(positions)
+    }
 
     // Calculate bounds
     let minX = Infinity
@@ -297,11 +494,14 @@ export class LayoutCalculator {
       maxY = Math.max(maxY, pos.y)
     }
 
+    // Add padding
+    const padding = 1000
+
     return {
       positions,
       bounds: {
-        width: maxX - minX + 1000, // Add padding
-        height: maxY - minY + 1000,
+        width: maxX - minX + padding * 2,
+        height: maxY - minY + padding * 2,
       },
     }
   }

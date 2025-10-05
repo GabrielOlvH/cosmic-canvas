@@ -8,7 +8,22 @@
       "Bash(bun add:*)",
       "WebFetch(domain:tanstack.com)",
       "Bash(npm install:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_click",
+      "Bash(curl:*)",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_console_messages",
+      "WebFetch(domain:peoplesfeelings.com)",
+      "Bash(npm run build:*)",
+      "WebFetch(domain:tldraw.dev)",
+      "Read(//c/Users/Gabriel/AppData/Local/Packages/5319275A.WhatsAppDesktop_cv1g1gvanyjgm/TempState/3666B3F573AC3C96B69FEE2E0E854960/**)",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_evaluate",
+      "Read(//c/**)"
     ],
     "deny": [],
     "ask": []

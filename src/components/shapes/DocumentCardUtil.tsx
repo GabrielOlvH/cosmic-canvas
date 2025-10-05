@@ -19,6 +19,7 @@ export type DocumentCardShape = TLBaseShape<
     content: string
     fullContent?: string
     source: string
+    keyFinding?: string // NEW: Key finding extracted by LLM (3-7 words)
   }
 >
 
@@ -35,12 +36,13 @@ export class DocumentCardUtil extends BaseBoxShapeUtil<DocumentCardShape> {
     content: T.string,
     fullContent: T.optional(T.string),
     source: T.string,
+    keyFinding: T.optional(T.string),
   }
 
   override getDefaultProps(): DocumentCardShape['props'] {
     return {
-      w: 300,
-      h: 200,
+      w: 450,
+      h: 280,
       title: 'Untitled Document',
       similarity: 0,
       theme: 'Uncategorized',
@@ -48,6 +50,7 @@ export class DocumentCardUtil extends BaseBoxShapeUtil<DocumentCardShape> {
       content: '',
       fullContent: '',
       source: '',
+      keyFinding: '',
     }
   }
 
@@ -60,7 +63,7 @@ export class DocumentCardUtil extends BaseBoxShapeUtil<DocumentCardShape> {
   }
 
   override component(shape: DocumentCardShape) {
-    const { title, similarity, theme, themeColor, content, source } = shape.props
+    const { title, similarity, theme, themeColor, content, source, keyFinding } = shape.props
 
     // Color mapping for theme badges
     const colorMap: Record<string, string> = {
@@ -93,50 +96,52 @@ export class DocumentCardUtil extends BaseBoxShapeUtil<DocumentCardShape> {
             fontFamily: 'Inter, system-ui, sans-serif',
           }}
         >
-          {/* Header */}
+          {/* Key Finding Header - PROMINENT */}
+          {keyFinding && (
+            <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2 border-blue-200">
+              <h3
+                className="text-base font-bold text-blue-900 line-clamp-2 text-center"
+                title={keyFinding}
+              >
+                {keyFinding}
+              </h3>
+            </div>
+          )}
+
+          {/* Paper Title */}
           <div className="px-3 py-2 border-b border-gray-200 bg-gray-50">
-            <h3
-              className="text-sm font-semibold text-gray-900 line-clamp-2"
+            <h4
+              className="text-xs font-medium text-gray-700 line-clamp-2"
               title={title}
             >
               {title}
-            </h3>
+            </h4>
           </div>
 
-          {/* Content Preview */}
+          {/* Supporting Detail */}
           <div className="flex-1 px-3 py-2 overflow-hidden">
-            <p className="text-xs text-gray-600 line-clamp-4">{content}</p>
+            <p className="text-xs text-gray-600 line-clamp-3">{content}</p>
           </div>
 
           {/* Footer */}
-          <div className="px-3 py-2 border-t border-gray-200 bg-gray-50 flex flex-col gap-2">
-            {/* Similarity Bar */}
+          <div className="px-3 py-2 border-t border-gray-200 bg-gray-50 flex items-center justify-between gap-2">
+            {/* Relevance Score */}
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500 font-medium w-16">
-                Relevance
+              <span className="text-xs text-gray-500 font-medium">
+                {(similarity * 100).toFixed(0)}%
               </span>
-              <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div className="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
                 <div
-                  className="bg-gradient-to-r from-blue-400 to-blue-600 h-full rounded-full transition-all"
+                  className="bg-blue-500 h-full rounded-full"
                   style={{ width: `${similarity * 100}%` }}
                 />
               </div>
-              <span className="text-xs text-gray-600 font-mono w-10 text-right">
-                {(similarity * 100).toFixed(0)}%
-              </span>
             </div>
 
-            {/* Theme Badge */}
-            <div className="flex items-center justify-between">
-              <span
-                className={`text-xs px-2 py-1 rounded-full border font-medium ${themeStyles}`}
-              >
-                {theme}
-              </span>
-              <span className="text-xs text-gray-400 truncate max-w-[120px]" title={source}>
-                {source.split('/').pop()}
-              </span>
-            </div>
+            {/* Source indicator */}
+            <span className="text-xs text-gray-400 truncate max-w-[100px]" title={source}>
+              {source.split('/').pop()?.replace(/\.[^/.]+$/, '')}
+            </span>
           </div>
         </div>
       </HTMLContainer>

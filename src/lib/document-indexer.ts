@@ -36,9 +36,15 @@ export class DocumentIndexer {
       modelName: 'text-embedding-3-large', // Latest embeddings model with 3072 dimensions
     })
 
+    // Parse chromaUrl to extract host and port
+    const url = new URL(chromaUrl)
+    const host = url.hostname
+    const port = parseInt(url.port) || 8000
+
     // Initialize Chroma client - connects to Chroma server
     this.chromaClient = new ChromaClient({
-      path: chromaUrl,
+      host,
+      port,
     })
 
     // Create or get the collection
@@ -46,7 +52,8 @@ export class DocumentIndexer {
       this.embeddings,
       {
         collectionName: this.collectionName,
-        url: chromaUrl,
+        host,
+        port,
       }
     ).catch(async () => {
       // Collection doesn't exist, create it
@@ -55,7 +62,8 @@ export class DocumentIndexer {
         this.embeddings,
         {
           collectionName: this.collectionName,
-          url: chromaUrl,
+          host,
+          port,
         }
       )
     })

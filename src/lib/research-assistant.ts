@@ -411,11 +411,12 @@ ${context}
       similarity: doc.similarity,
     }))
 
-    // PHASE 2-5: Generate Canvas
+    // PHASE 2-5: Generate Canvas (with research query for mind map center)
     const canvas = await this.canvasGenerator.generateCanvas(
       mainDocuments,
       adversarialDocuments,
-      { verbose }
+      { verbose },
+      query // Pass the original research query for the central node
     )
 
     return canvas

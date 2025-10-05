@@ -13,6 +13,7 @@ function ResearchPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPanel, setShowPanel] = useState(true)
+  const [statusMessage, setStatusMessage] = useState<string>('')
 
   const handleGenerateCanvas = async () => {
     if (!query.trim()) {
@@ -22,9 +23,13 @@ function ResearchPage() {
 
     setLoading(true)
     setError(null)
+    setStatusMessage('🔍 Sending request to server...')
 
     try {
       console.log('🔍 Generating research canvas...')
+
+      const startTime = Date.now()
+      setStatusMessage('⏳ Waiting for server response (this may take 2-4 minutes)...')
 
       const response = await fetch('/api/research-canvas', {
         method: 'POST',
@@ -37,30 +42,55 @@ function ResearchPage() {
         }),
       })
 
-      console.log('Response status:', response.status)
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+      setStatusMessage(`📡 Received response after ${elapsed}s, parsing data...`)
 
+      console.log('✓ Response status:', response.status)
+      console.log('✓ Response headers:', Object.fromEntries(response.headers.entries()))
+
+      setStatusMessage('📄 Reading response data...')
       const responseText = await response.text()
-      console.log('Response text (first 200 chars):', responseText.substring(0, 200))
+      console.log('✓ Response size:', (responseText.length / 1024).toFixed(1), 'KB')
+      console.log('✓ Response preview:', responseText.substring(0, 200))
 
       let data
       try {
+        setStatusMessage('🔧 Parsing JSON response...')
         data = JSON.parse(responseText)
       } catch (parseError) {
-        console.error('Failed to parse response:', parseError)
-        throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}`)
+        console.error('❌ JSON Parse Error:', parseError)
+        console.error('Response text:', responseText)
+
+        // Check if response is HTML error page
+        if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+          throw new Error('Server returned HTML error page instead of JSON. Check server logs for details.')
+        }
+
+        throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}`)
       }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate research canvas')
+        console.error('❌ API Error Response:', data)
+        throw new Error(data.error || data.details || 'Failed to generate research canvas')
       }
 
-      console.log('✓ Canvas generated:', data.canvas.stats)
+      if (!data.canvas) {
+        console.error('❌ Missing canvas in response:', data)
+        throw new Error('Server response missing canvas data')
+      }
+
+      setStatusMessage('✨ Canvas generated successfully!')
+      console.log('✓ Canvas generated successfully:', data.canvas.stats)
+      console.log('✓ Canvas shapes:', data.canvas.shapes?.length || 0)
+      console.log('✓ Canvas themes:', data.canvas.themes?.length || 0)
+
       setCanvasData(data.canvas)
       setShowPanel(false) // Hide panel to show full canvas
+      setStatusMessage('')
     } catch (err) {
-      console.error('Error:', err)
+      console.error('❌ Error:', err)
       setError(err instanceof Error ? err.message : 'Failed to generate canvas')
+      setStatusMessage('')
     } finally {
       setLoading(false)
     }
@@ -90,34 +120,6 @@ function ResearchPage() {
             Generate an interactive knowledge graph from your indexed documents.
             The canvas will show document relationships, themes, and contradictions.
           </p>
-
-          {/* API Keys */}
-          <div className="mb-4 space-y-3">
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700">
-                OpenAI API Key
-              </label>
-              <input
-                type="password"
-                value={openaiKey}
-                onChange={(e) => setOpenaiKey(e.target.value)}
-                placeholder="sk-..."
-                className="w-full p-2 rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700">
-                OpenRouter API Key
-              </label>
-              <input
-                type="password"
-                value={openrouterKey}
-                onChange={(e) => setOpenrouterKey(e.target.value)}
-                placeholder="sk-or-..."
-                className="w-full p-2 rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-sm"
-              />
-            </div>
-          </div>
 
           {/* Research Question Input */}
           <div className="mb-4">
@@ -180,6 +182,13 @@ function ResearchPage() {
             )}
           </button>
 
+          {/* Status Message */}
+          {statusMessage && (
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+              {statusMessage}
+            </div>
+          )}
+
           {/* Error Display */}
           {error && (
             <div className="mt-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
@@ -220,7 +229,6 @@ function ResearchPage() {
           <div className="mt-6 text-sm text-gray-600">
             <h4 className="font-semibold mb-2 text-gray-800">How it works:</h4>
             <ol className="list-decimal list-inside space-y-1">
-              <li>Enter your OpenAI and OpenRouter API keys</li>
               <li>Enter your research question</li>
               <li>The system finds relevant documents</li>
               <li>Identifies themes and relationships</li>

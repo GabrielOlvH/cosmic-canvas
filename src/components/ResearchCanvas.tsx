@@ -28,7 +28,10 @@ function CanvasLoader({ canvasData }: { canvasData: CanvasResult }) {
 
     try {
       // Clear existing shapes
-      editor.deleteShapes(editor.getCurrentPageShapeIds())
+      const existingShapes = editor.getCurrentPageShapeIds()
+      if (existingShapes.length > 0) {
+        editor.deleteShapes(existingShapes)
+      }
 
       // Create all shapes
       const shapesToCreate = canvasData.shapes.map((shape) => {
@@ -43,11 +46,12 @@ function CanvasLoader({ canvasData }: { canvasData: CanvasResult }) {
             y: shape.y,
             rotation: shape.rotation || 0,
             props: {
-              w: 300,
-              h: 200,
+              w: shape.props.w || 450,
+              h: shape.props.h || 280,
               ...shape.props,
             },
             meta: shape.meta || {},
+            parentId: shape.parentId,
           }
         } else if (shape.type === 'frame') {
           return {
@@ -69,48 +73,39 @@ function CanvasLoader({ canvasData }: { canvasData: CanvasResult }) {
             props: shape.props,
             meta: shape.meta || {},
           }
+        } else if (shape.type === 'geo') {
+          return {
+            id: shapeId,
+            type: 'geo',
+            x: shape.x,
+            y: shape.y,
+            rotation: shape.rotation || 0,
+            props: shape.props,
+            meta: shape.meta || {},
+          }
+        } else if (shape.type === 'text') {
+          return {
+            id: shapeId,
+            type: 'text',
+            x: shape.x,
+            y: shape.y,
+            rotation: shape.rotation || 0,
+            props: shape.props,
+            meta: shape.meta || {},
+          }
         }
 
         return null
       }).filter(Boolean)
 
-      // Create shapes
+      // Create shapes (arrows now have bindings embedded in their props)
       editor.createShapes(shapesToCreate as any[])
-
-      // Create bindings for arrows
-      for (const binding of canvasData.bindings) {
-        try {
-          const arrowId = createShapeId(binding.fromId) as TLShapeId
-          const targetId = createShapeId(binding.toId) as TLShapeId
-
-          // TLDraw bindings are created via arrow props
-          const arrow = editor.getShape(arrowId)
-          if (arrow && arrow.type === 'arrow') {
-            editor.updateShape({
-              id: arrowId,
-              type: 'arrow',
-              props: {
-                ...arrow.props,
-                [binding.props?.terminal === 'start' ? 'start' : 'end']: {
-                  type: 'binding',
-                  boundShapeId: targetId,
-                  normalizedAnchor: { x: 0.5, y: 0.5 },
-                  isExact: false,
-                },
-              },
-            })
-          }
-        } catch (e) {
-          console.warn('Failed to create binding:', binding, e)
-        }
-      }
 
       // Fit canvas to content
       editor.zoomToFit({ animation: { duration: 400 } })
 
       console.log('✓ Canvas loaded:', {
         shapes: canvasData.shapes.length,
-        bindings: canvasData.bindings.length,
         themes: canvasData.themes.length,
       })
     } catch (error) {
