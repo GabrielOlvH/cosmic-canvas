@@ -74,11 +74,18 @@ export class ExhaustiveSearch {
       recentResults: [],
     }
 
-    // Extract key concepts from query
-    const concepts = await this.extractConcepts(query)
+    // FIRST: Enrich the query with domain context
+    const enrichedQuery = await this.enrichQuery(query)
+    if (verbose) {
+      console.log(`  🔬 Original query: "${query}"`)
+      console.log(`  🔬 Enriched query: "${enrichedQuery}"`)
+    }
 
-    // Initial broad search
-    await this.executeSearch(query, state, { similarityThreshold, verbose })
+    // Extract key concepts from enriched query
+    const concepts = await this.extractConcepts(enrichedQuery)
+
+    // Initial broad search with ENRICHED query
+    await this.executeSearch(enrichedQuery, state, { similarityThreshold, verbose })
 
     // Iterative focused searches until exhaustive
     while (!this.isExhaustive(state, concepts, similarityThreshold) && state.iterations < maxIterations) {
@@ -119,6 +126,27 @@ Concepts:`
       .filter(c => c.length > 0)
 
     return concepts
+  }
+
+  private async enrichQuery(query: string): Promise<string> {
+    if (!this.llm) return query
+
+    const prompt = `You are helping search a scientific document database about space biology, microgravity effects, plants in space, astronaut health, and cellular changes in spaceflight.
+
+User's query: "${query}"
+
+Expand this query with relevant scientific context and terminology that would help find relevant documents in the database. Include:
+- Related scientific terms
+- Biological/physiological aspects
+- Space/microgravity context if relevant
+- Alternative phrasings
+
+Return ONLY the enriched query text (1-2 sentences), no explanation.
+
+Enriched query:`
+
+    const response = await this.llm.invoke(prompt)
+    return (response.content as string).trim()
   }
 
   private async executeSearch(

@@ -344,6 +344,15 @@ ${context}
       console.log(`✓ Concept coverage: ${(searchResult.conceptCoverage * 100).toFixed(1)}%\n`)
     }
 
+    // Check if we found any documents
+    if (searchResult.documents.length === 0) {
+      throw new Error(
+        `No relevant documents found for query: "${query}". ` +
+        `Your document collection may not contain information about this topic. ` +
+        `Try queries related to: space biology, microgravity effects, cellular changes, plants in space, or astronaut health.`
+      )
+    }
+
     // PHASE 1.5: Adversarial/Contradictory Source Discovery
     if (verbose) {
       console.log('🔬 Phase 1.5: Adversarial Source Discovery')
