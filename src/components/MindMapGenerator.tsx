@@ -1,6 +1,9 @@
 import { useEditor, toRichText } from 'tldraw'
 import { useEffect } from 'react'
 import type { TLShapeId } from 'tldraw'
+// Radial orbital layout (new)
+import type { LayoutNode } from '../lib/force-directed-layout' // Reuse LayoutNode structure for downstream shape code
+import { computeRadialOrbitalLayout } from '../lib/radial-orbital-layout'
 
 /**
  * Hierarchical mind map data structure
@@ -26,73 +29,9 @@ export interface MindMapNode {
   }
 }
 
-/**
- * Positioned node with calculated coordinates and dimensions
- */
-interface PositionedNode extends MindMapNode {
-  x: number
-  y: number
-  width: number
-  height: number
-  angle?: number
-  radius?: number
-}
-
 interface MindMapGeneratorProps {
   data: MindMapNode
 }
-
-/**
- * Layout configuration constants
- */
-const LAYOUT_CONFIG = {
-  // Radial layout spacing - 4 levels now!
-  RADIUS_STEP: 1200, // MASSIVE distance between each level
-  MIN_RADIUS: 700, // First ring (sub-topics) distance from center
-  
-  // Canvas positioning
-  CANVAS_CENTER_X: 0,
-  CANVAS_CENTER_Y: 0,
-  
-  // Node sizing - optimized for 4 levels
-  CENTRAL_NODE: {
-    width: 700,
-    height: 250,
-  },
-  SUBTOPIC_NODE: { // Level 1: Sub-topics
-    baseWidth: 350,
-    minWidth: 300,
-    maxWidth: 550,
-    height: 140,
-    padding: 50,
-  },
-  STUDY_NODE: { // Level 2: Study titles with authors and link
-    baseWidth: 320,
-    minWidth: 280,
-    maxWidth: 500,
-    height: 180, // Increased to accommodate title + authors + year + link
-    padding: 45,
-  },
-  FINDING_NODE: { // Level 3: Key findings
-    baseWidth: 280,
-    minWidth: 250,
-    maxWidth: 450,
-    height: 100,
-    padding: 35,
-  },
-  
-  // Text sizing (approximate character widths for estimation)
-  CHAR_WIDTH: {
-    xl: 14,
-    l: 10,
-    m: 8,
-    s: 7,
-  },
-  
-  // Spacing
-  MIN_ANGULAR_SEPARATION: 0.35, // MAXIMUM angular space between siblings
-  COLLISION_PADDING: 120,
-} as const
 
 /**
  * Color palette for theme nodes
@@ -186,11 +125,11 @@ export const MindMapGenerator: React.FC<MindMapGeneratorProps> = ({ data }) => {
           editor.deleteShapes(existingShapes)
         }
 
-        // Step 2: Calculate positions using radial/spoke layout (like traditional mind maps)
-        const positionedTree = calculateNodePositions(data)
+        // Step 2: Calculate positions using force-directed layout
+        const layoutResult = calculateNodePositions(data)
         
         // Step 3: Generate tldraw shapes from positioned nodes
-        const { shapes, arrows, bindings } = generateTldrawShapes(positionedTree)
+        const { shapes, arrows, bindings } = generateTldrawShapes(data, layoutResult)
         
         // Step 4: Create all shapes at once (atomic operation)
         // Order matters: nodes first, then arrows, then bindings
@@ -221,174 +160,49 @@ export const MindMapGenerator: React.FC<MindMapGeneratorProps> = ({ data }) => {
 }
 
 /**
- * RADIAL TREE LAYOUT ALGORITHM
+ * FORCE-DIRECTED GRAPH LAYOUT
  * 
- * Calculates (x, y) positions for all nodes using polar coordinates.
- * Each level forms a ring around the center, with nodes distributed
- * evenly within their allocated angular sector.
- * 
- * Algorithm steps:
- * 1. Place root (level 0) at canvas center
- * 2. For each level, calculate radius = level * RADIUS_STEP
- * 3. Distribute children evenly within parent's angular sector
- * 4. Convert polar (radius, angle) to Cartesian (x, y)
- * 5. Adjust positions for collision avoidance based on node widths
+ * Uses physics simulation to position nodes dynamically.
+ * Edges are routed with waypoints to avoid overlapping nodes.
  */
-function calculateNodePositions(root: MindMapNode): PositionedNode {
-  // Estimate node dimensions based on text length and level
-  const estimateNodeDimensions = (node: MindMapNode): { width: number; height: number } => {
-    if (node.level === 0) {
-      // Central topic - fixed large size
-      return {
-        width: LAYOUT_CONFIG.CENTRAL_NODE.width,
-        height: LAYOUT_CONFIG.CENTRAL_NODE.height,
-      }
-    } else if (node.level === 1) {
-      // Sub-topic nodes - dynamic width based on text
-      const textWidth = node.text.length * LAYOUT_CONFIG.CHAR_WIDTH.l
-      const width = Math.min(
-        Math.max(textWidth + LAYOUT_CONFIG.SUBTOPIC_NODE.padding, LAYOUT_CONFIG.SUBTOPIC_NODE.minWidth),
-        LAYOUT_CONFIG.SUBTOPIC_NODE.maxWidth
-      )
-      return {
-        width,
-        height: LAYOUT_CONFIG.SUBTOPIC_NODE.height,
-      }
-    } else if (node.level === 2) {
-      // Study nodes - medium sized rectangles
-      const textWidth = node.text.length * LAYOUT_CONFIG.CHAR_WIDTH.m
-      const width = Math.min(
-        Math.max(textWidth + LAYOUT_CONFIG.STUDY_NODE.padding, LAYOUT_CONFIG.STUDY_NODE.minWidth),
-        LAYOUT_CONFIG.STUDY_NODE.maxWidth
-      )
-      return {
-        width,
-        height: LAYOUT_CONFIG.STUDY_NODE.height,
-      }
-    } else {
-      // Finding nodes - smaller rectangles with text
-      const textWidth = node.text.length * LAYOUT_CONFIG.CHAR_WIDTH.s
-      const width = Math.min(
-        Math.max(textWidth + LAYOUT_CONFIG.FINDING_NODE.padding, LAYOUT_CONFIG.FINDING_NODE.minWidth),
-        LAYOUT_CONFIG.FINDING_NODE.maxWidth
-      )
-      return {
-        width,
-        height: LAYOUT_CONFIG.FINDING_NODE.height,
-      }
-    }
+function calculateNodePositions(root: MindMapNode): Map<string, LayoutNode> {
+  console.log('🌀 Calculating radial-orbital layout...')
+  // Use new deterministic radial orbital layout to avoid overlap & show hierarchy clearly
+  const radialNodes = computeRadialOrbitalLayout(root)
+
+  // Adapt radial nodes to LayoutNode interface expected by downstream shape generation
+  const adapted = new Map<string, LayoutNode>()
+  for (const [id, n] of radialNodes.entries()) {
+    adapted.set(id, {
+      id: n.id,
+      x: n.x,
+      y: n.y,
+      vx: 0,
+      vy: 0,
+      width: n.width,
+      height: n.height,
+      level: n.level,
+      mass: 1,
+      data: n.data,
+    })
   }
-
-  /**
-   * Recursive positioning function - Radial/Spoke Layout (like traditional mind maps)
-   * 
-   * @param node - Current node to position
-   * @param startAngle - Starting angle for this node's sector (radians)
-   * @param angularWidth - Angular width allocated (radians)
-   * @returns Positioned node with x, y coordinates and dimensions
-   */
-  const positionNode = (
-    node: MindMapNode,
-    startAngle: number,
-    angularWidth: number
-  ): PositionedNode => {
-    const dimensions = estimateNodeDimensions(node)
-    
-    // Root node at center
-    if (node.level === 0) {
-      const positioned: PositionedNode = {
-        ...node,
-        x: LAYOUT_CONFIG.CANVAS_CENTER_X,
-        y: LAYOUT_CONFIG.CANVAS_CENTER_Y,
-        width: dimensions.width,
-        height: dimensions.height,
-        angle: 0,
-        radius: 0,
-        children: [],
-      }
-      
-      // Distribute children evenly around the circle
-      const childCount = node.children.length
-      if (childCount > 0) {
-        const childAngularWidth = (2 * Math.PI) / childCount
-        
-        positioned.children = node.children.map((child, index) => {
-          const childStartAngle = index * childAngularWidth
-          return positionNode(child, childStartAngle, childAngularWidth)
-        })
-      }
-      
-      return positioned
-    }
-    
-    // Calculate radius - much larger spacing between levels
-    const radius = node.level === 1 
-      ? LAYOUT_CONFIG.MIN_RADIUS 
-      : LAYOUT_CONFIG.MIN_RADIUS + (node.level - 1) * LAYOUT_CONFIG.RADIUS_STEP
-    
-    // Position at center of angular sector
-    const angle = startAngle + angularWidth / 2
-    
-    // Convert polar to Cartesian
-    const x = LAYOUT_CONFIG.CANVAS_CENTER_X + radius * Math.cos(angle)
-    const y = LAYOUT_CONFIG.CANVAS_CENTER_Y + radius * Math.sin(angle)
-    
-    const positioned: PositionedNode = {
-      ...node,
-      x,
-      y,
-      width: dimensions.width,
-      height: dimensions.height,
-      angle,
-      radius,
-      children: [],
-    }
-    
-    // Position children within this sector
-    if (node.children.length > 0) {
-      const childCount = node.children.length
-      const childAngularWidth = angularWidth / childCount
-      
-      let currentAngle = startAngle
-      positioned.children = node.children.map((child) => {
-        const childNode = positionNode(child, currentAngle, childAngularWidth)
-        currentAngle += childAngularWidth
-        return childNode
-      })
-    }
-    
-    return positioned
-  }
-
-  // Start positioning from root with full circle
-
-  return positionNode(root, 0, 2 * Math.PI)
+  console.log(`✓ Radial-orbital layout: ${adapted.size} nodes positioned`)
+  return adapted
 }
 
 /**
- * TLDRAW SHAPE GENERATION
+ * TLDRAW SHAPE GENERATION FOR FORCE-DIRECTED LAYOUT
  * 
- * Converts positioned nodes into tldraw shape definitions.
- * Creates shapes, arrows, and bindings according to the design specifications.
- * 
- * Shape types by level:
- * - Level 0: geo shape with ellipse, blue fill, serif font, xl size
- * - Level 1: geo shape with rectangle, varied colors, sans font, l size
- * - Level 2+: text shape with no container, sans font, m size
- * 
- * All arrows use curved lines (bend property) with proper bindings.
+ * Converts positioned nodes from force-directed layout into tldraw shapes.
+ * Creates complex edges with waypoints instead of simple straight arrows.
  */
-function generateTldrawShapes(tree: PositionedNode) {
+function generateTldrawShapes(root: MindMapNode, layoutNodes: Map<string, LayoutNode>) {
   const shapes: any[] = []
   const arrows: any[] = []
   const bindings: any[] = []
   
-  // Track created shape IDs for binding arrows
+  // Track created shape IDs
   const shapeIdMap = new Map<string, TLShapeId>()
-  
-  /**
-   * Create a tldraw shape ID from our node ID
-   */
   const getShapeId = (nodeId: string): TLShapeId => {
     if (!shapeIdMap.has(nodeId)) {
       shapeIdMap.set(nodeId, `shape:${nodeId}` as TLShapeId)
@@ -396,28 +210,42 @@ function generateTldrawShapes(tree: PositionedNode) {
     return shapeIdMap.get(nodeId)!
   }
   
-  /**
-   * Recursively traverse tree and create shapes
-   */
-  const traverseAndCreateShapes = (
-    node: PositionedNode,
-    parentNode?: PositionedNode,
-    themeColorIndex = 0
-  ) => {
-    const shapeId = getShapeId(node.id)
+  // Build parent-child relationships from tree structure
+  const edges: Array<{ parent: string; child: string }> = []
+  const buildEdges = (node: MindMapNode, parentId?: string) => {
+    if (parentId) {
+      edges.push({ parent: parentId, child: node.id })
+    }
+    for (const child of node.children) {
+      buildEdges(child, node.id)
+    }
+  }
+  buildEdges(root)
+  
+  // Create node shapes
+  let themeIndex = 0
+  for (const [nodeId, layoutNode] of layoutNodes.entries()) {
+    const shapeId = getShapeId(nodeId)
+    const node = layoutNode.data
     
-    // CREATE NODE SHAPE based on level (4 levels total)
+    // Determine color for level 1 nodes
+    if (node.level === 1) {
+      themeIndex++
+    }
+    const colorIndex = node.level === 0 ? 0 : themeIndex - 1
+    
+    // CREATE NODE SHAPE based on level
     if (node.level === 0) {
       // LEVEL 0: CENTRAL RESEARCH QUESTION - Large blue ellipse
       shapes.push({
         id: shapeId,
         type: 'geo',
-        x: node.x - node.width / 2,
-        y: node.y - node.height / 2,
+        x: layoutNode.x - layoutNode.width / 2,
+        y: layoutNode.y - layoutNode.height / 2,
         props: {
           geo: 'ellipse',
-          w: node.width,
-          h: node.height,
+          w: layoutNode.width,
+          h: layoutNode.height,
           fill: 'solid',
           color: 'blue',
           font: 'serif',
@@ -429,16 +257,16 @@ function generateTldrawShapes(tree: PositionedNode) {
       })
     } else if (node.level === 1) {
       // LEVEL 1: SUB-TOPICS - Colored rectangles (solid)
-      const color = THEME_COLORS[themeColorIndex % THEME_COLORS.length]
+      const color = THEME_COLORS[colorIndex % THEME_COLORS.length]
       shapes.push({
         id: shapeId,
         type: 'geo',
-        x: node.x - node.width / 2,
-        y: node.y - node.height / 2,
+        x: layoutNode.x - layoutNode.width / 2,
+        y: layoutNode.y - layoutNode.height / 2,
         props: {
           geo: 'rectangle',
-          w: node.width,
-          h: node.height,
+          w: layoutNode.width,
+          h: layoutNode.height,
           fill: 'solid',
           color: color,
           font: 'sans',
@@ -450,21 +278,17 @@ function generateTldrawShapes(tree: PositionedNode) {
         },
       })
     } else if (node.level === 2) {
-      // LEVEL 2: STUDIES (titles + authors) - Medium rectangles with pattern fill
-      // Format text with title, authors, and link indicator
+      // LEVEL 2: STUDIES - Medium rectangles with pattern fill
       let displayText = node.text
       
-      // Add authors if available
       if (node.metadata?.authors) {
         displayText += `\n${node.metadata.authors}`
       }
       
-      // Add year if available
       if (node.metadata?.year) {
         displayText += ` (${node.metadata.year})`
       }
       
-      // Add link indicator if URL is available
       if (node.metadata?.url) {
         displayText += '\n\n🔗 Click to open article'
       }
@@ -472,12 +296,12 @@ function generateTldrawShapes(tree: PositionedNode) {
       shapes.push({
         id: shapeId,
         type: 'geo',
-        x: node.x - node.width / 2,
-        y: node.y - node.height / 2,
+        x: layoutNode.x - layoutNode.width / 2,
+        y: layoutNode.y - layoutNode.height / 2,
         props: {
           geo: 'rectangle',
-          w: node.width,
-          h: node.height,
+          w: layoutNode.width,
+          h: layoutNode.height,
           fill: 'pattern',
           color: 'light-blue',
           font: 'sans',
@@ -490,16 +314,16 @@ function generateTldrawShapes(tree: PositionedNode) {
         },
       })
     } else {
-      // LEVEL 3: KEY FINDINGS - Small rectangles with semi-transparent fill
+      // LEVEL 3: KEY FINDINGS - Small rectangles
       shapes.push({
         id: shapeId,
         type: 'geo',
-        x: node.x - node.width / 2,
-        y: node.y - node.height / 2,
+        x: layoutNode.x - layoutNode.width / 2,
+        y: layoutNode.y - layoutNode.height / 2,
         props: {
           geo: 'rectangle',
-          w: node.width,
-          h: node.height,
+          w: layoutNode.width,
+          h: layoutNode.height,
           fill: 'semi',
           color: 'grey',
           font: 'sans',
@@ -512,76 +336,80 @@ function generateTldrawShapes(tree: PositionedNode) {
         },
       })
     }
-    
-    // CREATE ARROW connecting to parent (if not root)
-    if (parentNode) {
-      const arrowId = `shape:arrow-${node.id}` as TLShapeId
-      const parentShapeId = getShapeId(parentNode.id)
-      
-      // Slight curve for organic feel - radial spokes
-      const angleDiff = (node.angle || 0) - (parentNode.angle || 0)
-      const bendAmount = Math.sin(angleDiff) * 15
-      
-      // Create arrow shape
-      // Start and end coordinates will be managed by bindings
-      arrows.push({
-        id: arrowId,
-        type: 'arrow',
-        x: parentNode.x,
-        y: parentNode.y,
-        props: {
-          start: { x: 0, y: 0 },
-          end: { x: node.x - parentNode.x, y: node.y - parentNode.y },
-          bend: bendAmount,
-          color: 'grey',
-          fill: 'none',
-          dash: 'draw', // Organic hand-drawn style
-          size: 'm',
-          arrowheadStart: 'none',
-          arrowheadEnd: 'arrow',
-        },
-      })
-      
-      // CREATE BINDINGS to connect arrow terminals to nodes
-      // Binding at arrow START (parent node)
-      bindings.push({
-        id: `binding:${arrowId}-start` as TLShapeId,
-        type: 'arrow',
-        fromId: arrowId,
-        toId: parentShapeId,
-        props: {
-          terminal: 'start',
-          normalizedAnchor: { x: 0.5, y: 0.5 }, // Center of parent node
-          isExact: false,
-          isPrecise: false,
-        },
-      })
-      
-      // Binding at arrow END (child node)
-      bindings.push({
-        id: `binding:${arrowId}-end` as TLShapeId,
-        type: 'arrow',
-        fromId: arrowId,
-        toId: shapeId,
-        props: {
-          terminal: 'end',
-          normalizedAnchor: { x: 0.5, y: 0.5 }, // Center of child node
-          isExact: false,
-          isPrecise: false,
-        },
-      })
-    }
-    
-    // Recursively process children
-    node.children.forEach((child, index) => {
-      // Pass theme color index for level 1 nodes, inherit for deeper levels
-      const childColorIndex = node.level === 0 ? index : themeColorIndex
-      traverseAndCreateShapes(child as PositionedNode, node, childColorIndex)
-    })
   }
   
-  // Start traversal from root
-  traverseAndCreateShapes(tree)
+  // Routing: compute middle handle to avoid node overlaps
+  const rects: Record<string, { x: number; y: number; w: number; h: number }> = {}
+  for (const [nid, ln] of layoutNodes.entries()) {
+    rects[nid] = { x: ln.x - ln.width / 2, y: ln.y - ln.height / 2, w: ln.width, h: ln.height }
+  }
+  const computeMiddle = (from: string, to: string) => {
+    const a = layoutNodes.get(from)!
+    const b = layoutNodes.get(to)!
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy))
+    const nx = -dy / dist
+    const ny = dx / dist
+    let offset = Math.min(220, Math.max(80, dist * 0.25))
+    for (const id in rects) {
+      if (id === from || id === to) continue
+      const r = rects[id]
+      const cx = r.x + r.w / 2
+      const cy = r.y + r.h / 2
+      const t = ((cx - a.x) * dx + (cy - a.y) * dy) / (dist * dist)
+      if (t > 0.08 && t < 0.92) {
+        const px = a.x + dx * t
+        const py = a.y + dy * t
+        const dLine = Math.hypot(cx - px, cy - py)
+        if (dLine < Math.max(r.w, r.h) * 0.55) {
+          offset = Math.max(offset, Math.max(r.w, r.h) * 0.7 + 90)
+        }
+      }
+    }
+    return { midX: (a.x + b.x) / 2 + nx * offset, midY: (a.y + b.y) / 2 + ny * offset, dx, dy }
+  }
+  for (const edge of edges) {
+    const parentNode = layoutNodes.get(edge.parent)
+    const childNode = layoutNodes.get(edge.child)
+    if (!parentNode || !childNode) continue
+    const { midX, midY, dx, dy } = computeMiddle(edge.parent, edge.child)
+    const arrowId = `shape:arrow-${edge.child}` as TLShapeId
+    const parentShapeId = getShapeId(edge.parent)
+    const childShapeId = getShapeId(edge.child)
+    
+    // Compute bend amount based on perpendicular offset from middle point
+    // Bend is signed: positive curves one way, negative the other
+    const midVecX = midX - parentNode.x
+    const midVecY = midY - parentNode.y
+    const straightMidX = dx / 2
+    const straightMidY = dy / 2
+    const offsetX = midVecX - straightMidX
+    const offsetY = midVecY - straightMidY
+    // Project offset onto perpendicular to get signed distance
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    const bendAmount = dist > 0 ? ((offsetX * (-dy) + offsetY * dx) / dist) * 0.5 : 0
+    
+    arrows.push({
+      id: arrowId,
+      type: 'arrow',
+      x: parentNode.x,
+      y: parentNode.y,
+      props: {
+        start: { x: 0, y: 0 },
+        end: { x: dx, y: dy },
+        bend: bendAmount,
+        color: 'grey',
+        fill: 'none',
+        dash: 'draw',
+        size: 'm',
+        arrowheadStart: 'none',
+        arrowheadEnd: 'arrow',
+      },
+    })
+    bindings.push({ id: `binding:${arrowId}-start` as TLShapeId, type: 'arrow', fromId: arrowId, toId: parentShapeId, props: { terminal: 'start', normalizedAnchor: { x: 0.5, y: 0.5 }, isExact: false, isPrecise: false } })
+    bindings.push({ id: `binding:${arrowId}-end` as TLShapeId, type: 'arrow', fromId: arrowId, toId: childShapeId, props: { terminal: 'end', normalizedAnchor: { x: 0.5, y: 0.5 }, isExact: false, isPrecise: false } })
+  }
   
   return { shapes, arrows, bindings }
 }

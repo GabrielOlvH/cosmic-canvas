@@ -5,9 +5,11 @@ import {
   useEditor,
 } from 'tldraw'
 import 'tldraw/tldraw.css'
+import '@/styles/canvas-space-theme.css'
 import { DocumentCardUtil } from './shapes/DocumentCardUtil'
 import type { CanvasResult } from '../lib/canvas-generator'
 import { MindMapGenerator } from './MindMapGenerator'
+import { SpaceBackground } from './space-theme/SpaceBackground'
 
 interface ResearchCanvasProps {
   canvasData: CanvasResult
@@ -130,19 +132,35 @@ function CanvasLoader({ canvasData, useMindMap }: { canvasData: CanvasResult; us
 
 export function ResearchCanvas({ canvasData, useMindMap = true }: ResearchCanvasProps) {
   return (
-    <div className="w-full h-screen">
-      <Tldraw
-        shapeUtils={customShapeUtils}
-        onMount={() => {
-          console.log('TLDraw editor mounted')
-        }}
-      >
-        <CanvasLoader canvasData={canvasData} useMindMap={useMindMap} />
-        {/* Render MindMapGenerator if enabled and data is available */}
-        {useMindMap && canvasData.mindMapData && (
-          <MindMapGenerator data={canvasData.mindMapData} />
-        )}
-      </Tldraw>
+    <div className="w-full h-screen relative">
+      {/* Space-themed background layer with enhanced dynamics */}
+      <SpaceBackground 
+        starDensity={0.7} 
+        nebulaIntensity={0.35} 
+        enableMouseParallax={true}
+        className="absolute inset-0 z-0"
+      />
+      
+      {/* TLDraw canvas with transparent background */}
+      <div className="absolute inset-0 z-10" style={{
+        // Make tldraw background transparent to show space theme
+        '--color-background': 'transparent',
+        '--color-low': 'rgba(255, 255, 255, 0.05)',
+        '--color-mid': 'rgba(255, 255, 255, 0.1)',
+      } as React.CSSProperties}>
+        <Tldraw
+          shapeUtils={customShapeUtils}
+          onMount={() => {
+            console.log('TLDraw editor mounted')
+          }}
+        >
+          <CanvasLoader canvasData={canvasData} useMindMap={useMindMap} />
+          {/* Render MindMapGenerator if enabled and data is available */}
+          {useMindMap && canvasData.mindMapData && (
+            <MindMapGenerator data={canvasData.mindMapData} />
+          )}
+        </Tldraw>
+      </div>
     </div>
   )
 }

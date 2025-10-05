@@ -1,0 +1,160 @@
+/**
+ * Custom CSS overrides for TLDraw canvas with space theme
+ * Applies dark space aesthetics to the canvas background and UI elements
+ */
+
+/* Make the tldraw canvas background transparent to show the space theme behind */
+.tl-container {
+  --color-background: transparent !important;
+}
+
+/* Override the default canvas background */
+.tl-canvas {
+  background: transparent !important;
+}
+
+/* Dark theme for the canvas grid (if visible) */
+.tl-grid {
+  opacity: 0.03;
+  background-image: 
+    linear-gradient(rgba(77, 201, 240, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(77, 201, 240, 0.1) 1px, transparent 1px);
+}
+
+/* Style the viewport background */
+.tl-background {
+  background: transparent !important;
+}
+
+/* Adjust UI elements for dark space theme */
+.tl-toolbar {
+  background: rgba(10, 14, 39, 0.85) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(77, 201, 240, 0.3);
+  box-shadow: 0 0 30px rgba(77, 201, 240, 0.2);
+}
+
+.tl-toolbar__inner {
+  background: transparent;
+}
+
+/* Style toolbar buttons */
+.tl-button {
+  background: rgba(77, 201, 240, 0.1);
+  border-color: rgba(77, 201, 240, 0.3);
+  color: #4cc9f0;
+}
+
+.tl-button:hover {
+  background: rgba(77, 201, 240, 0.2);
+  box-shadow: 0 0 15px rgba(77, 201, 240, 0.3);
+}
+
+/* Style the minimap */
+.tl-minimap {
+  background: rgba(10, 14, 39, 0.85) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(77, 201, 240, 0.3);
+}
+
+/* Style selection UI */
+.tl-selection-border {
+  stroke: #4cc9f0;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 6px #4cc9f0);
+}
+
+.tl-selection-bg {
+  fill: rgba(77, 201, 240, 0.1);
+}
+
+/* Style handles */
+.tl-handle {
+  fill: #4cc9f0;
+  stroke: #0a0e27;
+}
+
+.tl-handle:hover {
+  filter: drop-shadow(0 0 8px #4cc9f0);
+}
+
+/* Context menu styling */
+.tl-menu {
+  background: rgba(10, 14, 39, 0.95) !important;
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(77, 201, 240, 0.4);
+  box-shadow: 0 0 40px rgba(77, 201, 240, 0.3);
+  color: #f8f9fa;
+}
+
+.tl-menu-item {
+  color: #f8f9fa;
+}
+
+.tl-menu-item:hover {
+  background: rgba(77, 201, 240, 0.2);
+}
+
+/* Panel styling */
+.tl-panel {
+  background: rgba(10, 14, 39, 0.85) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(77, 201, 240, 0.3);
+}
+
+/* Text input styling for space theme */
+.tl-text-input {
+  background: rgba(10, 14, 39, 0.5);
+  border: 1px solid rgba(77, 201, 240, 0.3);
+  color: #f8f9fa;
+}
+
+.tl-text-input:focus {
+  border-color: #4cc9f0;
+  box-shadow: 0 0 15px rgba(77, 201, 240, 0.3);
+}
+
+/* Cursor styling */
+.tl-cursor {
+  filter: drop-shadow(0 0 4px rgba(77, 201, 240, 0.6));
+}
+
+/* Loading spinner */
+.tl-loading {
+  color: #4cc9f0;
+}
+
+/* Style the zoom controls */
+.tl-zoom-menu {
+  background: rgba(10, 14, 39, 0.85) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(77, 201, 240, 0.3);
+}
+
+/* Style scroll bars if visible */
+.tl-container ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.tl-container ::-webkit-scrollbar-track {
+  background: rgba(10, 14, 39, 0.5);
+}
+
+.tl-container ::-webkit-scrollbar-thumb {
+  background: rgba(77, 201, 240, 0.5);
+  border-radius: 4px;
+}
+
+.tl-container ::-webkit-scrollbar-thumb:hover {
+  background: rgba(77, 201, 240, 0.7);
+}
+
+/* Ensure proper layering */
+.tl-overlays {
+  pointer-events: none;
+}
+
+.tl-overlays > * {
+  pointer-events: auto;
+}

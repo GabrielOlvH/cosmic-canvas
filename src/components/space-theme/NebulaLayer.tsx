@@ -8,7 +8,7 @@ interface NebulaLayerProps {
 export function NebulaLayer({ intensity = 0.15, cloudCount = 3 }: NebulaLayerProps) {
   return (
     <div className="nebula-layer" style={{ opacity: intensity }}>
-      {/* Purple nebula cloud */}
+      {/* Large purple nebula cloud */}
       {cloudCount >= 1 && (
         <div
           className="nebula-cloud nebula-cloud-1"
@@ -31,6 +31,11 @@ export function NebulaLayer({ intensity = 0.15, cloudCount = 3 }: NebulaLayerPro
           aria-hidden="true"
         />
       )}
+
+      {/* Additional dynamic nebula clouds */}
+      <div className="nebula-cloud nebula-cloud-4" aria-hidden="true" />
+      <div className="nebula-cloud nebula-cloud-5" aria-hidden="true" />
+      <div className="nebula-cloud nebula-cloud-6" aria-hidden="true" />
 
       {/* Additional clouds if requested */}
       {cloudCount > 3 && Array.from({ length: cloudCount - 3 }).map((_, i) => (

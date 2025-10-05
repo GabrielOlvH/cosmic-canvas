@@ -113,7 +113,8 @@ export class CanvasGenerator {
     }
     const phase2Start = Date.now()
 
-    const themes = await this.themeDetector.detectThemes(documents)
+  // Request richer, context-aware themes (target ~7 core mechanisms/topics)
+  const themes = await this.themeDetector.detectThemes(documents, 7, researchQuery)
     const themeMap = this.themeDetector.assignDocumentsToThemes(documents, themes)
 
     if (verbose) {
@@ -250,11 +251,13 @@ export class CanvasGenerator {
     }
 
     // Generate MindMapNode data structure for MindMapGenerator component
+    // IMPORTANT: Include both main and adversarial documents for complete metadata lookup
+    const allDocuments = [...documents, ...adversarialDocuments]
     const mindMapData = this.convertToMindMapFormat(
       researchQuestion,
       themes,
       findingsMap,
-      documents
+      allDocuments
     )
 
     if (verbose) {
@@ -301,9 +304,22 @@ export class CanvasGenerator {
     documents: DocumentNode[]
   ): MindMapNode {
     // Create a map of documentId -> document for quick lookup
+    // Use multiple keys to handle different formats (filename, full path, title)
     const documentMap = new Map<string, DocumentNode>()
     for (const doc of documents) {
+      // Primary key: exact source
       documentMap.set(doc.metadata.source, doc)
+      
+      // Secondary key: just filename (in case source includes path)
+      const filename = doc.metadata.source.split('/').pop() || doc.metadata.source
+      if (filename !== doc.metadata.source) {
+        documentMap.set(filename, doc)
+      }
+      
+      // Tertiary key: title (in case documentId is a title)
+      if (doc.metadata.title && doc.metadata.title !== doc.metadata.source) {
+        documentMap.set(doc.metadata.title, doc)
+      }
     }
     
     // GROUP FINDINGS BY DOCUMENT (STUDY)
@@ -329,21 +345,25 @@ export class CanvasGenerator {
       themeStudyMap.get(theme.id)!.push({ documentId, findings })
     }
 
+    // USER-REQUESTED HIERARCHY ENFORCEMENT
+    // Desired structure: Topic (root) → Subtopics (themes) → Articles (documents) → Explanations (findings)
+    // We previously placed "studies" as level 2 and findings as level 3 but labeled themes as subtopics.
+    // Now we ensure naming & metadata types align precisely with user mental model.
     return {
       id: 'root',
       text: researchQuestion || 'Research Overview',
       level: 0,
       metadata: {
-        type: 'question',
-        description: 'Central research question'
+        type: 'topic',
+        description: 'Central topic / research question'
       },
       children: themes.map((theme, themeIndex) => {
         const studies = themeStudyMap.get(theme.id) || []
-        
-        // Take top 6 studies per sub-topic (for good spacing)
-        const topStudies = studies
+
+        // Keep strongest articles first (more findings = more central)
+        const orderedStudies = studies
           .sort((a, b) => b.findings.length - a.findings.length)
-          .slice(0, 6)
+          .slice(0, 8) // allow a bit more breadth for spacing with larger radii
 
         return {
           id: `subtopic-${themeIndex}`,
@@ -351,42 +371,53 @@ export class CanvasGenerator {
           level: 1,
           metadata: {
             type: 'subtopic',
-            documentCount: studies.length,
-            description: theme.description || `${studies.length} related studies`
+            articleCount: studies.length,
+            description: theme.description || `${studies.length} related articles`
           },
-          children: topStudies.map((study, studyIndex) => {
-            // Get document metadata from the original documents
-            const document = documentMap.get(study.documentId)
-            const studyTitle = document?.metadata?.title || study.documentId
-            const studyAuthors = document?.metadata?.authors
-            const studyUrl = document?.metadata?.url
-            const studyDoi = document?.metadata?.doi
-            const studyYear = document?.metadata?.year
-            
-            // Take top 3 findings from this study
+          children: orderedStudies.map((study, studyIndex) => {
+            // Resolve document metadata (multi-key strategy)
+            let document = documentMap.get(study.documentId)
+            if (!document) {
+              const filename = study.documentId.split('/').pop() || study.documentId
+              document = documentMap.get(filename)
+            }
+            if (!document) {
+              document = documentMap.get(study.documentId)
+            }
+            if (!document) {
+              console.warn(`⚠️  Could not find document metadata for: "${study.documentId}"`)
+            }
+
+            const articleTitle = document?.metadata?.title || study.documentId
+            const articleAuthors = document?.metadata?.authors
+            const articleUrl = document?.metadata?.url
+            const articleDoi = document?.metadata?.doi
+            const articleYear = document?.metadata?.year
+
+            // Explanations (findings) trimmed
             const topFindings = study.findings
               .sort((a, b) => (b.importance || 0) - (a.importance || 0))
-              .slice(0, 3)
+              .slice(0, 4) // allow up to 4 concise explanations
 
             return {
-              id: `study-${themeIndex}-${studyIndex}`,
-              text: studyTitle,
+              id: `article-${themeIndex}-${studyIndex}`,
+              text: articleTitle,
               level: 2,
               metadata: {
-                type: 'study',
+                type: 'article',
                 source: study.documentId,
-                findingCount: study.findings.length,
-                authors: studyAuthors,
-                doi: studyDoi,
-                year: studyYear,
-                url: studyUrl,
+                explanationCount: study.findings.length,
+                authors: articleAuthors,
+                doi: articleDoi,
+                year: articleYear,
+                url: articleUrl,
               },
               children: topFindings.map((finding, findingIndex) => ({
-                id: `finding-${themeIndex}-${studyIndex}-${findingIndex}`,
+                id: `explanation-${themeIndex}-${studyIndex}-${findingIndex}`,
                 text: finding.finding,
                 level: 3,
                 metadata: {
-                  type: 'finding',
+                  type: 'explanation',
                   importance: finding.importance,
                 },
                 children: [],

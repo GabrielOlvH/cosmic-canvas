@@ -48,7 +48,8 @@ export class ThemeDetector {
    */
   async detectThemes(
     documents: DocumentNode[],
-    targetThemeCount = 5
+    targetThemeCount = 7,
+    researchQuestion?: string
   ): Promise<Theme[]> {
     if (!this.llm) {
       throw new Error('ThemeDetector not initialized. Call initialize() first.')
@@ -59,63 +60,82 @@ export class ThemeDetector {
       id: doc.metadata.source,
       index: idx,
       title: doc.metadata.title,
-      preview: doc.content.substring(0, 200),
+      preview: doc.content.substring(0, 300),
     }))
 
-    const prompt = `<task>
-Analyze these academic documents and identify ${targetThemeCount}-${targetThemeCount + 2} distinct RESEARCH SUB-TOPICS.
+    const rq = researchQuestion ? researchQuestion.trim() : 'the overarching research topic'
+    const prompt = `You are a scientific literature analyst extracting BIOLOGICAL/PHYSIOLOGICAL themes from research papers.
 
-These should be SPECIFIC ASPECTS or ANGLES of the research area - NOT generic quality categories like "relevant studies" or "highly cited papers".
+RESEARCH CONTEXT: "${rq}"
 
-Think: What different scientific questions, methodologies, phenomena, or domains do these papers explore?
+CRITICAL RULES:
+❌ ABSOLUTELY FORBIDDEN theme names (these will cause INSTANT REJECTION):
+   - "Primary Research Focus" / "Core Research" / "Main Studies"
+   - "Methodological Approaches" / "Methods" / "Techniques"
+   - "General Findings" / "Supporting Studies" / "Background"
+   - ANY name containing these words: "research", "study", "studies", "approach", "method", "finding", "focus", "primary", "secondary", "core", "supporting"
 
-<documents>
+✅ REQUIRED: Extract ${targetThemeCount} themes describing ACTUAL BIOLOGICAL CONTENT:
+   - Organ systems: bone, muscle, heart, brain, eye, gut, liver, kidney, immune
+   - Biological processes: metabolism, transcription, inflammation, apoptosis, adaptation
+   - Physiological effects: density loss, dysfunction, dysregulation, atrophy, damage
+   - Cell/tissue types: mitochondrial, cardiovascular, neural, hepatic
+   - Experimental models: microgravity, radiation, spaceflight, hindlimb unloading
+
+GOOD EXAMPLES (use these patterns):
+✓ "Bone Density and Musculoskeletal Changes"
+✓ "Cardiovascular System Adaptation"  
+✓ "Immune System Dysregulation"
+✓ "Gut Microbiome Alterations"
+✓ "Transcriptomic Responses"
+✓ "Mitochondrial Dysfunction"
+✓ "Retinal and Ocular Damage"
+✓ "Muscle Atrophy and Function"
+
+DOCUMENTS TO ANALYZE:
 ${documentSummaries
   .map(
-    d => `
-[${d.index}] ID: ${d.id}
-Title: ${d.title}
-Preview: ${d.preview}...
+    d => `[${d.index}] ${d.title}
+${d.preview}...
 `
   )
   .join('\n')}
-</documents>
 
-<output_format>
-Return ONLY a JSON array of sub-topics with this structure:
+TASK: Look at the titles above and extract the BIOLOGICAL/MEDICAL content (organs, systems, processes, effects).
+
+OUTPUT FORMAT (JSON only, no markdown, no explanation):
 [
   {
-    "name": "Specific Sub-Topic Name (2-6 words, can be multi-line in the visualization)",
-    "description": "Clear 1-2 sentence description of what specific aspect this covers",
-    "documentIndices": [0, 1, 5, 7]
+    "name": "Biological Theme Name (3-6 words)",
+    "description": "One sentence describing the biological system or mechanism",
+    "documentIndices": [0, 3, 5, 8, 12]
   }
 ]
 
-Guidelines:
-1. Sub-topics should represent SPECIFIC research areas, methods, or phenomena
-2. Examples of GOOD sub-topics: "Mitochondrial DNA Damage", "Bone Density Loss Mechanisms", "Radiation-Induced Cellular Stress"
-3. Examples of BAD sub-topics: "Highly Relevant Studies", "Core Research", "Supporting Documents"
-4. Each sub-topic should have 3-8 documents
-5. Most documents should belong to 1-2 sub-topics
-6. Names can be longer (up to 6 words) - they will wrap in the visualization
-7. Return ONLY the JSON array, no other text
-</output_format>
-</task>`
+REQUIREMENTS:
+- Return EXACTLY ${targetThemeCount} themes
+- Each theme should have 4-8 documents
+- Theme names MUST describe biological content (not meta-categories)
+- Return ONLY the JSON array, nothing else`
 
     const response = await this.llm.invoke(prompt)
     const content = response.content as string
 
     try {
-      // Extract JSON from response
-      const jsonMatch = content.match(/\[[\s\S]*\]/)
+      // Extract JSON from response with better cleaning
+      let jsonText = content.trim()
+      // Remove markdown code blocks if present
+      jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '')
+      // Find JSON array
+      const jsonMatch = jsonText.match(/\[[\s\S]*\]/)
       if (!jsonMatch) {
-        throw new Error('No JSON array found in LLM response')
+        console.warn('⚠️  No JSON found in LLM response, using semantic clustering')
+        return this.createSemanticThemes(documents, documentSummaries, targetThemeCount)
       }
 
       const rawThemes = JSON.parse(jsonMatch[0])
 
-      // Convert to Theme objects
-      const themes: Theme[] = rawThemes.map((rawTheme: any, idx: number) => ({
+      let themes: Theme[] = rawThemes.map((rawTheme: any, idx: number) => ({
         id: `theme-${idx}`,
         name: rawTheme.name,
         description: rawTheme.description,
@@ -125,55 +145,149 @@ Guidelines:
         ),
       }))
 
+      // STRICT VALIDATION: Reject forbidden theme names
+      const forbiddenPatterns = /primary|general|misc|method|approach|focus|mixed|various|background|core|research|study|studies|finding|secondary|supporting|relevant|main|central/i
+      const invalidThemes = themes.filter(t => forbiddenPatterns.test(t.name))
+      
+      if (invalidThemes.length > 0) {
+        console.warn('⚠️  LLM returned generic/forbidden theme names:', invalidThemes.map(t => t.name).join(', '))
+        console.warn('   Using semantic clustering fallback instead')
+        return this.createSemanticThemes(documents, documentSummaries, targetThemeCount)
+      }
+
+      // Check if too few themes
+      if (themes.length < Math.max(4, targetThemeCount - 2)) {
+        console.warn(`⚠️  LLM returned only ${themes.length} themes (target: ${targetThemeCount}), using semantic fallback`)
+        return this.createSemanticThemes(documents, documentSummaries, targetThemeCount)
+      }
+
+      console.log(`✓ Theme detection successful: ${themes.length} valid biological themes`)
       return themes
     } catch (error) {
       console.error('Failed to parse theme detection response:', error)
-      console.error('Response content:', content)
-
-      // Fallback: create simple themes based on similarity
-      return this.createFallbackThemes(documents)
+      console.error('Response content:', content.substring(0, 500))
+      return this.createSemanticThemes(documents, documentSummaries, targetThemeCount)
     }
   }
 
   /**
-   * Fallback theme creation if LLM fails
-   * Groups documents by content similarity and creates meaningful clusters
+   * Semantic theme creation using biological term extraction
+   * Clusters documents by extracting organ systems, processes, and biological terms from titles
    */
-  private createFallbackThemes(documents: DocumentNode[]): Theme[] {
-    // Sort by similarity
-    const sorted = [...documents].sort((a, b) => b.similarity - a.similarity)
+  private createSemanticThemes(
+    documents: DocumentNode[],
+    _summaries: { id: string; index: number; title: string; preview: string }[],
+    targetCount: number
+  ): Theme[] {
+    console.log('🔬 Creating themes from biological term extraction...')
     
-    const themes: Theme[] = [
-      {
-        id: 'theme-0',
-        name: 'Primary Research Focus',
-        description: 'Core studies directly addressing the main research question',
-        color: 'blue',
-        documentIds: sorted
-          .slice(0, Math.ceil(sorted.length * 0.4))
-          .map(d => d.metadata.source),
-      },
-      {
-        id: 'theme-1',
-        name: 'Methodological Approaches',
-        description: 'Studies exploring different experimental methods and techniques',
-        color: 'green',
-        documentIds: sorted
-          .slice(Math.ceil(sorted.length * 0.4), Math.ceil(sorted.length * 0.7))
-          .map(d => d.metadata.source),
-      },
-      {
-        id: 'theme-2',
-        name: 'Contextual Background',
-        description: 'Supporting literature and theoretical foundations',
-        color: 'orange',
-        documentIds: documents
-          .filter(d => d.similarity < 0.5)
-          .map(d => d.metadata.source),
-      },
-    ]
+    // Biological keyword categories
+    const bioTerms = {
+      bone: /bone|skeletal|osteo|musculoskeletal|vertebra/i,
+      cardiovascular: /heart|cardiac|cardiovascular|vascular|blood|vessel/i,
+      immune: /immune|immunol|lymph|cytokine|inflammation|antibod/i,
+      brain: /brain|neural|neuro|cognit|cerebral|nervous/i,
+      gut: /gut|microbiom|intestin|gastrointestinal|colon/i,
+      eye: /eye|ocular|retina|visual|vision|optic/i,
+      muscle: /muscle|muscular|myofib|sarco|contractil/i,
+      liver: /liver|hepatic/i,
+      gene: /gene|transcript|rna|genom|express/i,
+      mitochondrial: /mitochond|oxidative|atp|respiration/i,
+      radiation: /radiation|cosmic|ray|particle/i,
+      microgravity: /microgravity|weightless|spaceflight|space.*flight/i,
+      metabol: /metabol|glyco|lipid|nutrient/i,
+      kidney: /kidney|renal|nephro/i,
+      cell: /cell|cellular|apoptosis|proliferation/i,
+    }
 
-    return themes.filter(t => t.documentIds.length > 0)
+    // Count which docs match which categories
+    const docCategories = new Map<string, string[]>()
+    for (const doc of documents) {
+      const text = (doc.metadata.title + ' ' + doc.content.substring(0, 500)).toLowerCase()
+      const matches: string[] = []
+      for (const [category, pattern] of Object.entries(bioTerms)) {
+        if (pattern.test(text)) matches.push(category)
+      }
+      if (matches.length > 0) {
+        docCategories.set(doc.metadata.source, matches)
+      }
+    }
+
+    // Build theme candidates
+    const themeCandidates: Record<string, string[]> = {}
+    for (const [docId, categories] of docCategories.entries()) {
+      for (const cat of categories) {
+        if (!themeCandidates[cat]) themeCandidates[cat] = []
+        themeCandidates[cat].push(docId)
+      }
+    }
+
+    // Filter to themes with reasonable document counts and sort by size
+    const viableThemes = Object.entries(themeCandidates)
+      .filter(([, docs]) => docs.length >= 3 && docs.length <= 25)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, targetCount)
+
+    const themeNames: Record<string, string> = {
+      bone: 'Bone Density and Musculoskeletal Changes',
+      cardiovascular: 'Cardiovascular System Adaptation',
+      immune: 'Immune System Dysregulation',
+      brain: 'Neurological and Cognitive Effects',
+      gut: 'Gut Microbiome Alterations',
+      eye: 'Retinal and Ocular Damage',
+      muscle: 'Muscle Atrophy and Function',
+      liver: 'Hepatic Metabolism and Function',
+      gene: 'Transcriptomic Responses',
+      mitochondrial: 'Mitochondrial Dysfunction',
+      radiation: 'Radiation Effects',
+      microgravity: 'Microgravity-Induced Changes',
+      metabol: 'Metabolic Alterations',
+      kidney: 'Renal Function and Damage',
+      cell: 'Cellular Stress Responses',
+    }
+
+    const themes: Theme[] = viableThemes.map(([cat, docIds], idx) => ({
+      id: `theme-${idx}`,
+      name: themeNames[cat] || this.titleCaseKeyword(cat),
+      description: `Studies examining ${cat}-related effects and mechanisms`,
+      color: THEME_COLORS[idx % THEME_COLORS.length],
+      documentIds: docIds,
+    }))
+
+    // If we don't have enough themes, split large ones or use simple fallback
+    if (themes.length < Math.max(3, targetCount - 3)) {
+      console.warn('⚠️  Not enough viable semantic themes, using simple clustering')
+      return this.createSimpleFallback(documents, targetCount)
+    }
+
+    console.log(`✓ Created ${themes.length} semantic themes from biological terms`)
+    themes.forEach(t => console.log(`  - ${t.name} (${t.documentIds.length} docs)`))
+    return themes
+  }
+
+  /**
+   * Last-resort fallback: simple clustering by similarity
+   */
+  private createSimpleFallback(documents: DocumentNode[], targetCount: number): Theme[] {
+    const sorted = [...documents].sort((a, b) => b.similarity - a.similarity)
+    const perTheme = Math.ceil(documents.length / targetCount)
+    const themes: Theme[] = []
+    
+    for (let i = 0; i < targetCount; i++) {
+      const start = i * perTheme
+      const docs = sorted.slice(start, start + perTheme)
+      if (docs.length > 0) {
+        themes.push({
+          id: `theme-${i}`,
+          name: `Research Cluster ${i + 1}`,
+          description: `Document group ${i + 1} by relevance`,
+          color: THEME_COLORS[i % THEME_COLORS.length],
+          documentIds: docs.map(d => d.metadata.source),
+        })
+      }
+    }
+
+    return themes
   }
 
   /**
@@ -215,5 +329,9 @@ Guidelines:
   getDocumentsInTheme(themeId: string, themes: Theme[]): string[] {
     const theme = themes.find(t => t.id === themeId)
     return theme ? theme.documentIds : []
+  }
+
+  private titleCaseKeyword(k: string) { 
+    return k.replace(/(^|\s)\w/g, m => m.toUpperCase()) 
   }
 }
