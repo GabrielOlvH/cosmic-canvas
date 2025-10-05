@@ -362,7 +362,10 @@ export class CanvasGenerator {
               metadata: {
                 type: 'study',
                 source: study.documentId,
-                findingCount: study.findings.length
+                findingCount: study.findings.length,
+                // Extract metadata from the first finding's document
+                authors: topFindings[0]?.documentId ? undefined : undefined, // Will be populated from document metadata
+                doi: topFindings[0]?.documentId ? undefined : undefined,
               },
               children: topFindings.map((finding, findingIndex) => ({
                 id: `finding-${themeIndex}-${studyIndex}-${findingIndex}`,

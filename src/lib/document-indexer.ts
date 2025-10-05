@@ -9,6 +9,10 @@ export interface DocumentMetadata {
   title: string
   type: string
   timestamp: number
+  authors?: string
+  doi?: string
+  year?: number
+  journal?: string
 }
 
 export interface IndexedDocument {

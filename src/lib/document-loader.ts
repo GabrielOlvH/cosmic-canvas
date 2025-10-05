@@ -13,6 +13,10 @@ export interface LoadedDocument {
     type: string
     timestamp: number
     filePath: string
+    authors?: string
+    doi?: string
+    year?: number
+    journal?: string
   }
 }
 
@@ -52,17 +56,21 @@ export class DocumentLoader {
         }
 
         if (this.supportedExtensions.includes(ext)) {
-          const content = await this.loadFile(fullPath, ext)
+          const result = await this.loadFile(fullPath, ext)
 
-          if (content) {
+          if (result) {
             documents.push({
-              content,
+              content: result.content,
               metadata: {
                 source: file.name,
-                title: basename(file.name, ext),
+                title: result.metadata?.title || basename(file.name, ext),
                 type: this.getFileType(ext),
                 timestamp: Date.now(),
                 filePath: fullPath,
+                authors: result.metadata?.authors,
+                doi: result.metadata?.doi,
+                year: result.metadata?.year,
+                journal: result.metadata?.journal,
               },
             })
           }
@@ -71,13 +79,13 @@ export class DocumentLoader {
     }
   }
 
-  private async loadFile(filePath: string, ext: string): Promise<string | null> {
+  private async loadFile(filePath: string, ext: string): Promise<{ content: string; metadata?: { title?: string; authors?: string; doi?: string; year?: number; journal?: string } } | null> {
     try {
       switch (ext) {
         case '.txt':
         case '.md': {
           const content = await readFile(filePath, 'utf-8')
-          return content
+          return { content }
         }
 
         case '.json': {
@@ -88,31 +96,40 @@ export class DocumentLoader {
 
             // If it's an array of documents, combine them
             if (Array.isArray(parsed)) {
-              return parsed
-                .map(doc => {
-                  if (typeof doc === 'string') return doc
-                  if (doc.content) return doc.content
-                  return JSON.stringify(doc)
-                })
-                .join('\n\n')
+              return {
+                content: parsed
+                  .map(doc => {
+                    if (typeof doc === 'string') return doc
+                    if (doc.content) return doc.content
+                    return JSON.stringify(doc)
+                  })
+                  .join('\n\n')
+              }
             }
 
             // If it's a single document with content field
             if (parsed.content) {
-              return parsed.content
+              return { content: parsed.content }
             }
 
             // Otherwise, stringify the whole thing
-            return JSON.stringify(parsed, null, 2)
+            return { content: JSON.stringify(parsed, null, 2) }
           } catch {
-            return content
+            return { content }
           }
         }
 
         case '.pdf': {
           const dataBuffer = await readFile(filePath)
           const data = await pdf(dataBuffer)
-          return data.text
+          
+          // Extract metadata from PDF
+          const pdfMetadata = this.extractPDFMetadata(data)
+          
+          return {
+            content: data.text,
+            metadata: pdfMetadata
+          }
         }
 
         default:
@@ -122,6 +139,53 @@ export class DocumentLoader {
       console.error(`Failed to load file ${filePath}:`, error)
       return null
     }
+  }
+
+  private extractPDFMetadata(pdfData: any): { title?: string; authors?: string; doi?: string; year?: number; journal?: string } {
+    const metadata: { title?: string; authors?: string; doi?: string; year?: number; journal?: string } = {}
+    
+    // Try to get title from PDF info
+    if (pdfData.info?.Title) {
+      metadata.title = pdfData.info.Title.trim()
+    }
+    
+    // Try to get author from PDF info
+    if (pdfData.info?.Author) {
+      metadata.authors = pdfData.info.Author.trim()
+    }
+    
+    // Extract from first 2000 characters of text (usually contains title, authors, DOI)
+    const firstPage = pdfData.text.substring(0, 2000)
+    
+    // Try to extract DOI
+    const doiMatch = firstPage.match(/(?:doi:|DOI:|https?:\/\/doi\.org\/)([\d\w.\/-]+)/i)
+    if (doiMatch && doiMatch[1]) {
+      metadata.doi = doiMatch[1].trim()
+    }
+    
+    // Try to extract year (4-digit number that looks like a year)
+    const yearMatch = firstPage.match(/\b(19|20)\d{2}\b/)
+    if (yearMatch) {
+      const year = parseInt(yearMatch[0])
+      if (year >= 1900 && year <= new Date().getFullYear()) {
+        metadata.year = year
+      }
+    }
+    
+    // If no title from info, try to extract from first few lines
+    if (!metadata.title) {
+      // Get first non-empty line that's substantial (not just numbers/dates)
+      const lines = firstPage.split('\n').filter((l: string) => l.trim().length > 20)
+      if (lines.length > 0) {
+        // Often the title is the first substantial line
+        metadata.title = lines[0].trim()
+          .replace(/^(Title:|TITLE:)/i, '')
+          .trim()
+          .substring(0, 200) // Limit length
+      }
+    }
+    
+    return metadata
   }
 
   private getFileType(ext: string): string {
@@ -146,17 +210,21 @@ export class DocumentLoader {
       const ext = extname(filePath).toLowerCase()
 
       if (this.supportedExtensions.includes(ext)) {
-        const content = await this.loadFile(filePath, ext)
+        const result = await this.loadFile(filePath, ext)
 
-        if (content) {
+        if (result) {
           documents.push({
-            content,
+            content: result.content,
             metadata: {
               source: basename(filePath),
-              title: basename(filePath, ext),
+              title: result.metadata?.title || basename(filePath, ext),
               type: this.getFileType(ext),
               timestamp: Date.now(),
               filePath,
+              authors: result.metadata?.authors,
+              doi: result.metadata?.doi,
+              year: result.metadata?.year,
+              journal: result.metadata?.journal,
             },
           })
         }
