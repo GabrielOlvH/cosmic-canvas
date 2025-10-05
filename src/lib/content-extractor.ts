@@ -63,7 +63,7 @@ export class ContentExtractor {
     }))
 
     const prompt = `<task>
-Extract the KEY FINDINGS or MAIN CONCEPTS from these research documents related to "${themeName}" in the context of: "${researchQuestion}"
+Extract the KEY FINDINGS or MAIN RESULTS from these research documents related to "${themeName}" in the context of: "${researchQuestion}"
 
 <documents>
 ${documentData
@@ -79,16 +79,17 @@ Relevance: ${(d.similarity * 100).toFixed(0)}%
 
 <instructions>
 For each document, extract:
-1. ONE key finding or main concept (3-7 words, like a mind map node)
-2. ONE sentence of supporting detail
+1. ONE key finding or main result (can be 1-3 lines if needed - be descriptive!)
+2. ONE sentence of supporting context/detail
 3. Importance score (0-1) based on how central this is to ${themeName}
 
 Guidelines:
-- Focus on FINDINGS and CONCEPTS, not document metadata
-- Use KEYWORDS and SHORT PHRASES, not full sentences for findings
-- Make it useful for understanding the research at a glance
-- Example good finding: "Mitochondrial Complex I Deficiency"
-- Example bad finding: "This paper discusses various aspects of..."
+- Focus on ACTUAL RESEARCH FINDINGS and RESULTS, not just topic descriptions
+- Be SPECIFIC and DETAILED - don't just say "DNA damage" say "Increased mitochondrial DNA deletions observed after 30 days exposure"
+- Use complete sentences or detailed phrases that capture the scientific result
+- The finding will be displayed in a rectangle shape - it can wrap across 2-3 lines
+- Example GOOD finding: "Microgravity exposure induces a 2.5-fold increase in reactive oxygen species in cardiomyocytes"
+- Example BAD finding: "Cellular changes observed"
 </instructions>
 
 <output_format>
@@ -96,8 +97,8 @@ Return ONLY a JSON array:
 [
   {
     "documentIndex": 0,
-    "finding": "Key Finding (3-7 words)",
-    "detail": "One sentence supporting detail.",
+    "finding": "Detailed finding text (1-3 lines, be specific about the result)",
+    "detail": "Additional context or methodology note.",
     "importance": 0.85
   }
 ]

@@ -63,7 +63,11 @@ export class ThemeDetector {
     }))
 
     const prompt = `<task>
-Analyze these academic documents and identify ${targetThemeCount}-${targetThemeCount + 2} distinct research themes or clusters.
+Analyze these academic documents and identify ${targetThemeCount}-${targetThemeCount + 2} distinct RESEARCH SUB-TOPICS.
+
+These should be SPECIFIC ASPECTS or ANGLES of the research area - NOT generic quality categories like "relevant studies" or "highly cited papers".
+
+Think: What different scientific questions, methodologies, phenomena, or domains do these papers explore?
 
 <documents>
 ${documentSummaries
@@ -78,21 +82,23 @@ Preview: ${d.preview}...
 </documents>
 
 <output_format>
-Return ONLY a JSON array of themes with this structure:
+Return ONLY a JSON array of sub-topics with this structure:
 [
   {
-    "name": "Theme Name (3-5 words)",
-    "description": "One sentence description",
+    "name": "Specific Sub-Topic Name (2-6 words, can be multi-line in the visualization)",
+    "description": "Clear 1-2 sentence description of what specific aspect this covers",
     "documentIndices": [0, 1, 5, 7]
   }
 ]
 
 Guidelines:
-1. Each theme should be distinct and meaningful
-2. Most documents should belong to 1-2 themes
-3. Theme names should be concise and descriptive
-4. Cover all major research areas represented
-5. Return ONLY the JSON array, no other text
+1. Sub-topics should represent SPECIFIC research areas, methods, or phenomena
+2. Examples of GOOD sub-topics: "Mitochondrial DNA Damage", "Bone Density Loss Mechanisms", "Radiation-Induced Cellular Stress"
+3. Examples of BAD sub-topics: "Highly Relevant Studies", "Core Research", "Supporting Documents"
+4. Each sub-topic should have 3-8 documents
+5. Most documents should belong to 1-2 sub-topics
+6. Names can be longer (up to 6 words) - they will wrap in the visualization
+7. Return ONLY the JSON array, no other text
 </output_format>
 </task>`
 
@@ -131,32 +137,35 @@ Guidelines:
 
   /**
    * Fallback theme creation if LLM fails
-   * Groups documents by similarity score ranges
+   * Groups documents by content similarity and creates meaningful clusters
    */
   private createFallbackThemes(documents: DocumentNode[]): Theme[] {
+    // Sort by similarity
+    const sorted = [...documents].sort((a, b) => b.similarity - a.similarity)
+    
     const themes: Theme[] = [
       {
         id: 'theme-0',
-        name: 'Highly Relevant Studies',
-        description: 'Documents with highest similarity to the research question',
+        name: 'Primary Research Focus',
+        description: 'Core studies directly addressing the main research question',
         color: 'blue',
-        documentIds: documents
-          .filter(d => d.similarity > 0.7)
+        documentIds: sorted
+          .slice(0, Math.ceil(sorted.length * 0.4))
           .map(d => d.metadata.source),
       },
       {
         id: 'theme-1',
-        name: 'Moderately Relevant Studies',
-        description: 'Documents with moderate similarity to the research question',
+        name: 'Methodological Approaches',
+        description: 'Studies exploring different experimental methods and techniques',
         color: 'green',
-        documentIds: documents
-          .filter(d => d.similarity >= 0.5 && d.similarity <= 0.7)
+        documentIds: sorted
+          .slice(Math.ceil(sorted.length * 0.4), Math.ceil(sorted.length * 0.7))
           .map(d => d.metadata.source),
       },
       {
         id: 'theme-2',
-        name: 'Supporting Context',
-        description: 'Background and contextual documents',
+        name: 'Contextual Background',
+        description: 'Supporting literature and theoretical foundations',
         color: 'orange',
         documentIds: documents
           .filter(d => d.similarity < 0.5)
