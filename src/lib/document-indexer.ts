@@ -13,6 +13,7 @@ export interface DocumentMetadata {
   doi?: string
   year?: number
   journal?: string
+  url?: string // PMC link or DOI URL
 }
 
 export interface IndexedDocument {
