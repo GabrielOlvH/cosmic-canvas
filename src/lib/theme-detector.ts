@@ -27,7 +27,7 @@ const THEME_COLORS = [
 export class ThemeDetector {
   private llm: ChatOpenAI | null = null
 
-  async initialize(openrouterKey: string, model = 'moonshotai/kimi-k2-0905') {
+  async initialize(openrouterKey: string, model = 'google/gemini-2.5-flash') {
     this.llm = new ChatOpenAI({
       openAIApiKey: openrouterKey,
       modelName: model,

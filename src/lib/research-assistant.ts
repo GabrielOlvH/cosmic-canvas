@@ -35,8 +35,8 @@ export class ResearchAssistant {
     this.canvasGenerator = new CanvasGenerator()
   }
 
-  async initialize(openaiKey: string, openrouterKey: string, model = 'moonshotai/kimi-k2-0905') {
-    // Initialize LLM for synthesis (via OpenRouter) - using faster Kimi model
+  async initialize(openaiKey: string, openrouterKey: string, model = 'google/gemini-2.5-flash') {
+    // Initialize LLM for synthesis (via OpenRouter) - using Gemini 2.5 Flash
     this.llm = new ChatOpenAI({
       openAIApiKey: openrouterKey,
       modelName: model,
