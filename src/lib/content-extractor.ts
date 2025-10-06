@@ -252,10 +252,14 @@ Return ONLY the research question text, no other text.
     verbose = false
   ): Promise<Map<string, KeyFinding[]>> {
     const findingsMap = new Map<string, KeyFinding[]>()
+    const totalThemes = themes.length
 
-    for (const theme of themes) {
+    for (let i = 0; i < themes.length; i++) {
+      const theme = themes[i]
+      const themeNumber = i + 1
+      
       if (verbose) {
-        console.log(`  📝 Extracting findings for theme: ${theme.name}`)
+        console.log(`  📝 [${themeNumber}/${totalThemes}] Extracting findings for theme: ${theme.name}`)
       }
 
       // Get documents for this theme
@@ -270,7 +274,7 @@ Return ONLY the research question text, no other text.
         findingsMap.set(theme.id, findings)
 
         if (verbose) {
-          console.log(`  ✓ Extracted ${findings.length} findings`)
+          console.log(`  ✓ [${themeNumber}/${totalThemes}] Extracted ${findings.length} findings`)
         }
       } catch (error) {
         console.error(`Failed to extract findings for theme ${theme.name}:`, error)

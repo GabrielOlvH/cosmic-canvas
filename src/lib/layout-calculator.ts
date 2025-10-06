@@ -64,6 +64,7 @@ export class LayoutCalculator {
 
   /**
    * Layout Level 1: Main themes radiating from center
+   * Allocate angular sectors based on family size (more children = wider sector)
    */
   private layoutLevel1_Themes(
     centerNode: HierarchyNode,
@@ -73,21 +74,51 @@ export class LayoutCalculator {
     const themeIds = centerNode.children
     if (themeIds.length === 0) return
 
-    // Distribute themes evenly around center (360°)
-    const angleStep = 360 / themeIds.length
+    // Calculate how much space each theme family needs based on descendant count
+    const familySizes = themeIds.map(themeId => {
+      const theme = nodes.get(themeId)
+      if (!theme) return 1
+      
+      // Count all descendants (findings + documents)
+      let totalDescendants = theme.children.length // findings
+      for (const findingId of theme.children) {
+        const finding = nodes.get(findingId)
+        if (finding) {
+          totalDescendants += finding.children.length // documents
+        }
+      }
+      return Math.max(1, totalDescendants)
+    })
 
+    const totalSize = familySizes.reduce((sum, size) => sum + size, 0)
+
+    // Distribute 360° proportionally to family sizes
+    let currentAngle = 0
     themeIds.forEach((themeId, index) => {
-      const angle = (index * angleStep * Math.PI) / 180 // Convert to radians
+      const familySize = familySizes[index]
+      const sectorSize = (familySize / totalSize) * 360 // Degrees for this family
+      
+      // Position theme at the CENTER of its allocated sector
+      const angle = (currentAngle + sectorSize / 2) * Math.PI / 180
       const x = Math.cos(angle) * this.CENTER_RADIUS
       const y = Math.sin(angle) * this.CENTER_RADIUS
 
       positions.set(themeId, { x, y })
+      
+      // Store sector info for children layout
+      const theme = nodes.get(themeId)
+      if (theme) {
+        ;(theme as any).sectorStart = currentAngle
+        ;(theme as any).sectorSize = sectorSize
+      }
+      
+      currentAngle += sectorSize
     })
   }
 
   /**
    * Layout Level 2: Findings branching from each theme
-   * Uses UNCAPPED arc distribution with aggressive radius variation
+   * Stay within the family's allocated angular sector to prevent overlap
    */
   private layoutLevel2_Findings(
     nodes: Map<string, HierarchyNode>,
@@ -100,36 +131,29 @@ export class LayoutCalculator {
       const themePos = positions.get(nodeId)
       if (!themePos || node.children.length === 0) continue
 
-      // Calculate angle from center to this theme
-      const themeAngle = Math.atan2(themePos.y, themePos.x)
+      // Get the allocated sector for this family
+      const sectorStart = (node as any).sectorStart || 0
+      const sectorSize = (node as any).sectorSize || 60
+      
+      // Use most of the sector but leave small margins
+      const usableSector = sectorSize * 0.85 // Use 85% to leave breathing room
+      const sectorCenter = sectorStart + sectorSize / 2
 
       const findingCount = node.children.length
       const baseRadius = this.CENTER_RADIUS + this.LEVEL_SPACING
-      
-      // Calculate MINIMUM arc needed to fit all nodes without overlap
-      const nodeWidth = 500 // approximate width of finding node
-      const minSpacing = nodeWidth * 1.5 // 50% padding between nodes for breathing room
-      const circumference = 2 * Math.PI * baseRadius
-      const requiredArcLength = minSpacing * findingCount
-      const arcSpanRadians = requiredArcLength / baseRadius
-      const arcSpanDegrees = (arcSpanRadians * 180) / Math.PI
-      
-      // NO CAP - let it spread as much as needed! If we need 180°, use 180°
-      const actualArcSpan = Math.min(240, arcSpanDegrees) // Only cap at 240° to prevent full circle overlap
 
       node.children.forEach((findingId, index) => {
-        // Evenly distribute findings across the FULL calculated arc
-        const offsetAngle = actualArcSpan / 2 - (index / (findingCount - 1 || 1)) * actualArcSpan
-        const findingAngle = themeAngle + (offsetAngle * Math.PI) / 180
+        // Distribute findings within the family's sector
+        const angleOffset = (index / (findingCount - 1 || 1) - 0.5) * usableSector
+        const angle = (sectorCenter + angleOffset) * Math.PI / 180
 
-        // AGGRESSIVE VARIABLE RADIUS: much larger variation to spread nodes apart
-        // Use quadratic curve for more dramatic effect
-        const normalizedPosition = Math.abs(index / (findingCount - 1 || 1) - 0.5) * 2 // 0 at center, 1 at edges
-        const radiusVariation = Math.pow(normalizedPosition, 1.5) * 800 // Up to 800px with power curve
+        // Small radius variation to avoid perfect circles
+        const normalizedPosition = Math.abs(index / (findingCount - 1 || 1) - 0.5) * 2
+        const radiusVariation = normalizedPosition * 150
         const radius = baseRadius + radiusVariation
 
-        const x = Math.cos(findingAngle) * radius
-        const y = Math.sin(findingAngle) * radius
+        const x = Math.cos(angle) * radius
+        const y = Math.sin(angle) * radius
 
         positions.set(findingId, { x, y })
       })
@@ -138,7 +162,7 @@ export class LayoutCalculator {
 
   /**
    * Layout Level 3: Documents branching from findings
-   * Uses UNCAPPED arc distribution with aggressive radius variation
+   * Stay within the family's allocated angular sector to prevent overlap
    */
   private layoutLevel3_Documents(
     nodes: Map<string, HierarchyNode>,
@@ -151,30 +175,28 @@ export class LayoutCalculator {
       const findingPos = positions.get(nodeId)
       if (!findingPos || node.children.length === 0) continue
 
+      // Get parent theme to know the sector bounds
+      const parentTheme = nodes.get(node.parentId!)
+      const sectorStart = (parentTheme as any)?.sectorStart || 0
+      const sectorSize = (parentTheme as any)?.sectorSize || 60
+      
       // Calculate angle from center to this finding
-      const findingAngle = Math.atan2(findingPos.y, findingPos.x)
+      const findingAngle = Math.atan2(findingPos.y, findingPos.x) * 180 / Math.PI
 
       const docCount = node.children.length
       const baseRadius = this.CENTER_RADIUS + this.LEVEL_SPACING * 2
       
-      // Calculate MINIMUM arc needed to fit all nodes without overlap
-      const nodeWidth = 460 // approximate width of document node
-      const minSpacing = nodeWidth * 1.5 // 50% padding between nodes for breathing room
-      const requiredArcLength = minSpacing * docCount
-      const arcSpanRadians = requiredArcLength / baseRadius
-      const arcSpanDegrees = (arcSpanRadians * 180) / Math.PI
-      
-      // NO CAP - let it spread as much as needed! Can go up to 270° if necessary
-      const actualArcSpan = Math.min(270, arcSpanDegrees)
+      // Use smaller arc around the finding, but stay within family sector
+      const maxArcForDocs = Math.min(30, sectorSize * 0.4) // Max 30° or 40% of sector
 
       node.children.forEach((docId, index) => {
-        // Evenly distribute documents across the FULL calculated arc
-        const offsetAngle = actualArcSpan / 2 - (index / (docCount - 1 || 1)) * actualArcSpan
-        const docAngle = findingAngle + (offsetAngle * Math.PI) / 180
+        // Distribute documents in tight arc around parent finding
+        const angleOffset = (index / (docCount - 1 || 1) - 0.5) * maxArcForDocs
+        const docAngle = (findingAngle + angleOffset) * Math.PI / 180
 
-        // AGGRESSIVE VARIABLE RADIUS: much larger variation with power curve
-        const normalizedPosition = Math.abs(index / (docCount - 1 || 1) - 0.5) * 2 // 0 at center, 1 at edges
-        const radiusVariation = Math.pow(normalizedPosition, 1.5) * 1000 // Up to 1000px with power curve
+        // Small radius variation
+        const normalizedPosition = Math.abs(index / (docCount - 1 || 1) - 0.5) * 2
+        const radiusVariation = normalizedPosition * 180
         const radius = baseRadius + radiusVariation
 
         const x = Math.cos(docAngle) * radius

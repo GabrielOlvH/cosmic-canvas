@@ -221,10 +221,28 @@ function HomePage() {
 
             {/* Welcome Message (only when no canvas and not loading) */}
             {!canvasData && !loading && (
-              <div className="mt-8 text-center">
-                <p className="text-gray-400 text-sm">
-                  Explore space biology research through interactive visual canvases
-                </p>
+              <div className="mt-8 max-w-2xl mx-auto">
+                <div className="bg-[#0f1629]/80 backdrop-blur-xl rounded-2xl border border-cyan-500/20 p-8 space-y-4 text-gray-300">
+                  <p className="text-base leading-relaxed">
+                    Finding connections across hundreds of scientific studies is overwhelming. We built an AI research assistant that transforms database searches into interactive visual knowledge maps.
+                  </p>
+                  
+                  <p className="text-base leading-relaxed">
+                    Our system takes <span className="text-cyan-400 font-semibold">608 space biology studies</span>, embedded in ChromaDB, and uses a RAG-powered LangChain agent (via Open Router with <span className="text-cyan-400">moonshotai/kimi-k2-0905</span>) to understand your questions. Instead of returning a simple list, it identifies themes across documents and generates interactive mind maps using tldraw—showing how studies relate to each other and to your query, complete with citations and links.
+                  </p>
+                  
+                  <p className="text-base leading-relaxed">
+                    <span className="text-teal-400 font-semibold">Why mind maps?</span> Because research isn't linear. You can see all connections at once, think spatially, edit the maps directly in the app, and export them as images for presentations or papers.
+                  </p>
+                  
+                  <p className="text-base leading-relaxed">
+                    This is a working prototype for space biology, but the bigger vision is universal: any research database can become a visual knowledge graph. We're continuing to improve the visuals, speed, and accuracy over time.
+                  </p>
+                  
+                  <p className="text-sm text-cyan-400 italic border-t border-cyan-500/20 pt-4 mt-4">
+                    Built for NASA Space Apps Challenge - Making scientific discovery intuitive and visual.
+                  </p>
+                </div>
               </div>
             )}
           </div>
