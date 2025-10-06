@@ -37,12 +37,14 @@ function HomePage() {
     }
 
     const stages = [
-      { progress: 15, delay: 500, message: '🔍 Enriching query with domain context...' },
-      { progress: 30, delay: 2000, message: '📚 Searching 588 indexed documents...' },
-      { progress: 50, delay: 4000, message: '🧠 Analyzing semantic relationships...' },
-      { progress: 65, delay: 6000, message: '🎨 Detecting research themes...' },
-      { progress: 80, delay: 8000, message: '🔗 Building knowledge graph...' },
-      { progress: 90, delay: 10000, message: '✨ Generating visual layout...' },
+      { progress: 10, delay: 500, message: '🔍 Enriching query with scientific terminology and space biology context...' },
+      { progress: 20, delay: 2000, message: '📚 Searching 588 indexed documents across space research database...' },
+      { progress: 35, delay: 8000, message: '🧠 Analyzing semantic relationships between documents... (this takes ~1 minute)' },
+      { progress: 50, delay: 20000, message: '🎨 Detecting research themes and clustering findings... (this takes ~1 minute)' },
+      { progress: 65, delay: 40000, message: '🔗 Building hierarchical knowledge graph structure...' },
+      { progress: 75, delay: 60000, message: '📐 Calculating optimal node positions with anti-clustering algorithm...' },
+      { progress: 85, delay: 80000, message: '✨ Generating visual layout with arc-length spacing... (almost done!)' },
+      { progress: 95, delay: 100000, message: '🎨 Rendering final canvas elements...' },
     ]
 
     stages.forEach(({ progress: p, delay, message }) => {
@@ -144,7 +146,7 @@ function HomePage() {
       <div className="absolute inset-0 z-20 pointer-events-none">
         <div className="flex items-start justify-center pt-12 px-4">
           <div className="pointer-events-auto w-full max-w-3xl">
-            {/* Title */}
+            {/* Title - Always visible */}
             <div className="text-center mb-6">
               <h1 className="text-5xl font-bold text-white mb-3 bg-gradient-to-r from-cyan-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
                 Cosmic Canvas
@@ -154,62 +156,68 @@ function HomePage() {
               </p>
             </div>
 
-            {/* Search Bar */}
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 via-teal-500/20 to-cyan-500/20 rounded-2xl blur-xl" />
-              <div className="relative bg-[#0f1629]/90 backdrop-blur-xl rounded-2xl border border-cyan-500/30 shadow-2xl">
-                <div className="flex items-center gap-4 p-6">
-                  <Search className="w-6 h-6 text-cyan-400 flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Enter your research question..."
-                    disabled={loading}
-                    className="flex-1 bg-transparent text-white text-lg placeholder-gray-400 outline-none disabled:opacity-50"
-                  />
-                  <button
-                    onClick={handleGenerateCanvas}
-                    disabled={loading || !query.trim()}
-                    className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-medium rounded-xl hover:from-cyan-400 hover:to-teal-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Generating...</span>
-                      </>
-                    ) : (
-                      <span>Generate</span>
-                    )}
-                  </button>
+            {/* Search Bar - Hide when canvas is loaded */}
+            {!canvasData && (
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 via-teal-500/20 to-cyan-500/20 rounded-2xl blur-xl" />
+                <div className="relative bg-[#0f1629]/90 backdrop-blur-xl rounded-2xl border border-cyan-500/30 shadow-2xl">
+                  <div className="flex items-center gap-4 p-6">
+                    <Search className="w-6 h-6 text-cyan-400 flex-shrink-0" />
+                    <input
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Enter your research question..."
+                      disabled={loading}
+                      className="flex-1 bg-transparent text-white text-lg placeholder-gray-400 outline-none disabled:opacity-50"
+                    />
+                    <button
+                      onClick={handleGenerateCanvas}
+                      disabled={loading || !query.trim()}
+                      className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-medium rounded-xl hover:from-cyan-400 hover:to-teal-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>Generating...</span>
+                        </>
+                      ) : (
+                        <span>Generate</span>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Progress Indicator */}
+                  {loading && (
+                    <div className="px-6 pb-6">
+                      {/* Time Estimate */}
+                      <div className="text-center mb-3">
+                        <p className="text-xs text-gray-400">⏱️ Estimated time: 3-4 minutes</p>
+                      </div>
+                      {/* Progress Bar */}
+                      <div className="relative h-2 bg-gray-700/50 rounded-full overflow-hidden mb-3">
+                        <div 
+                          className="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan-500 to-teal-500 transition-all duration-500 ease-out"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      {/* Status Text */}
+                      <p className="text-sm text-cyan-300">{statusMessage}</p>
+                    </div>
+                  )}
+
+                  {/* Error Message */}
+                  {error && (
+                    <div className="px-6 pb-4">
+                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                        <p className="text-sm text-red-400">{error}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {/* Progress Indicator */}
-                {loading && (
-                  <div className="px-6 pb-6">
-                    {/* Progress Bar */}
-                    <div className="relative h-2 bg-gray-700/50 rounded-full overflow-hidden mb-3">
-                      <div 
-                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-cyan-500 to-teal-500 transition-all duration-500 ease-out"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    {/* Status Text */}
-                    <p className="text-sm text-cyan-300">{statusMessage}</p>
-                  </div>
-                )}
-
-                {/* Error Message */}
-                {error && (
-                  <div className="px-6 pb-4">
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                      <p className="text-sm text-red-400">{error}</p>
-                    </div>
-                  </div>
-                )}
               </div>
-            </div>
+            )}
 
             {/* Welcome Message (only when no canvas and not loading) */}
             {!canvasData && !loading && (
