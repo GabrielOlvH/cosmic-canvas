@@ -87,7 +87,7 @@ export class LayoutCalculator {
 
   /**
    * Layout Level 2: Findings branching from each theme
-   * Uses ARC-LENGTH based spacing for even distribution
+   * Uses UNCAPPED arc distribution with aggressive radius variation
    */
   private layoutLevel2_Findings(
     nodes: Map<string, HierarchyNode>,
@@ -103,21 +103,31 @@ export class LayoutCalculator {
       // Calculate angle from center to this theme
       const themeAngle = Math.atan2(themePos.y, themePos.x)
 
-      // ARC-LENGTH based spacing: calculate required arc to fit all findings
       const findingCount = node.children.length
-      const radius = this.CENTER_RADIUS + this.LEVEL_SPACING
+      const baseRadius = this.CENTER_RADIUS + this.LEVEL_SPACING
+      
+      // Calculate MINIMUM arc needed to fit all nodes without overlap
       const nodeWidth = 500 // approximate width of finding node
-      const minArcLength = nodeWidth * 1.3 // 30% padding between nodes
-      const requiredArcLength = minArcLength * findingCount
-      const arcSpan = (requiredArcLength / radius) * (180 / Math.PI) // Convert to degrees
-      const cappedArcSpan = Math.min(120, arcSpan) // Cap at 120° to prevent overlap with adjacent themes
+      const minSpacing = nodeWidth * 1.5 // 50% padding between nodes for breathing room
+      const circumference = 2 * Math.PI * baseRadius
+      const requiredArcLength = minSpacing * findingCount
+      const arcSpanRadians = requiredArcLength / baseRadius
+      const arcSpanDegrees = (arcSpanRadians * 180) / Math.PI
+      
+      // NO CAP - let it spread as much as needed! If we need 180°, use 180°
+      const actualArcSpan = Math.min(240, arcSpanDegrees) // Only cap at 240° to prevent full circle overlap
 
       node.children.forEach((findingId, index) => {
-        // Evenly distribute findings across the arc
-        const offsetAngle = cappedArcSpan / 2 - (index / (findingCount - 1 || 1)) * cappedArcSpan
+        // Evenly distribute findings across the FULL calculated arc
+        const offsetAngle = actualArcSpan / 2 - (index / (findingCount - 1 || 1)) * actualArcSpan
         const findingAngle = themeAngle + (offsetAngle * Math.PI) / 180
 
-        // Position at next radius level
+        // AGGRESSIVE VARIABLE RADIUS: much larger variation to spread nodes apart
+        // Use quadratic curve for more dramatic effect
+        const normalizedPosition = Math.abs(index / (findingCount - 1 || 1) - 0.5) * 2 // 0 at center, 1 at edges
+        const radiusVariation = Math.pow(normalizedPosition, 1.5) * 800 // Up to 800px with power curve
+        const radius = baseRadius + radiusVariation
+
         const x = Math.cos(findingAngle) * radius
         const y = Math.sin(findingAngle) * radius
 
@@ -128,7 +138,7 @@ export class LayoutCalculator {
 
   /**
    * Layout Level 3: Documents branching from findings
-   * Uses ARC-LENGTH based spacing for even distribution
+   * Uses UNCAPPED arc distribution with aggressive radius variation
    */
   private layoutLevel3_Documents(
     nodes: Map<string, HierarchyNode>,
@@ -144,21 +154,29 @@ export class LayoutCalculator {
       // Calculate angle from center to this finding
       const findingAngle = Math.atan2(findingPos.y, findingPos.x)
 
-      // ARC-LENGTH based spacing: calculate required arc to fit all documents
       const docCount = node.children.length
-      const radius = this.CENTER_RADIUS + this.LEVEL_SPACING * 2
+      const baseRadius = this.CENTER_RADIUS + this.LEVEL_SPACING * 2
+      
+      // Calculate MINIMUM arc needed to fit all nodes without overlap
       const nodeWidth = 460 // approximate width of document node
-      const minArcLength = nodeWidth * 1.3 // 30% padding between nodes
-      const requiredArcLength = minArcLength * docCount
-      const arcSpan = (requiredArcLength / radius) * (180 / Math.PI) // Convert to degrees
-      const cappedArcSpan = Math.min(100, arcSpan) // Cap at 100° to prevent overlap
+      const minSpacing = nodeWidth * 1.5 // 50% padding between nodes for breathing room
+      const requiredArcLength = minSpacing * docCount
+      const arcSpanRadians = requiredArcLength / baseRadius
+      const arcSpanDegrees = (arcSpanRadians * 180) / Math.PI
+      
+      // NO CAP - let it spread as much as needed! Can go up to 270° if necessary
+      const actualArcSpan = Math.min(270, arcSpanDegrees)
 
       node.children.forEach((docId, index) => {
-        // Evenly distribute documents across the arc
-        const offsetAngle = cappedArcSpan / 2 - (index / (docCount - 1 || 1)) * cappedArcSpan
+        // Evenly distribute documents across the FULL calculated arc
+        const offsetAngle = actualArcSpan / 2 - (index / (docCount - 1 || 1)) * actualArcSpan
         const docAngle = findingAngle + (offsetAngle * Math.PI) / 180
 
-        // Position at outermost radius level
+        // AGGRESSIVE VARIABLE RADIUS: much larger variation with power curve
+        const normalizedPosition = Math.abs(index / (docCount - 1 || 1) - 0.5) * 2 // 0 at center, 1 at edges
+        const radiusVariation = Math.pow(normalizedPosition, 1.5) * 1000 // Up to 1000px with power curve
+        const radius = baseRadius + radiusVariation
+
         const x = Math.cos(docAngle) * radius
         const y = Math.sin(docAngle) * radius
 
