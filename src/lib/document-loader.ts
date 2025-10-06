@@ -34,31 +34,31 @@ export class DocumentLoader {
     }
 
     const pmcMap = new Map<string, string>()
-    
+
     try {
-      // Try to load from Downloads folder
-      const csvPath = '/Users/lucascc/Downloads/SB_publication_PMC.csv'
+      // Optional: Try to load PMC links from CSV if it exists
+      const csvPath = process.env.PMC_LINKS_CSV || join(process.cwd(), 'SB_publication_PMC.csv')
       const csvContent = await readFile(csvPath, 'utf-8')
       const lines = csvContent.split('\n').slice(1) // Skip header
-      
+
       for (const line of lines) {
         if (!line.trim()) continue
-        
+
         // Parse CSV line (handle titles with commas)
         const lastCommaIndex = line.lastIndexOf(',')
         if (lastCommaIndex === -1) continue
-        
+
         const title = line.substring(0, lastCommaIndex).trim()
         const url = line.substring(lastCommaIndex + 1).trim()
-        
+
         if (title && url) {
           pmcMap.set(title.toLowerCase(), url)
         }
       }
-      
+
       console.log(`✓ Loaded ${pmcMap.size} PMC links from CSV`)
-    } catch (error) {
-      console.warn('Could not load PMC links CSV:', error instanceof Error ? error.message : 'Unknown error')
+    } catch {
+      // Silently skip - CSV is optional for adding PMC links
     }
     
     this.pmcLinksCache = pmcMap

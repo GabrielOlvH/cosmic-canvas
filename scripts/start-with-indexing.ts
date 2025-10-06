@@ -2,6 +2,7 @@
 
 import { spawn } from 'node:child_process'
 import { config } from 'dotenv'
+import { ChromaClient } from 'chromadb'
 
 // Load environment variables
 config()
@@ -38,18 +39,24 @@ async function checkChroma(): Promise<boolean> {
   const chromaUrl = process.env.CHROMA_URL || 'http://localhost:8000'
 
   try {
-    const response = await fetch(`${chromaUrl}/api/v1/heartbeat`)
-    if (response.ok) {
-      console.log(`${colors.green}✓ Chroma is running at ${chromaUrl}${colors.reset}`)
-      return true
-    }
-  } catch {
-    // Failed to connect
-  }
+    const url = new URL(chromaUrl)
+    const portFromUrl = url.port ? Number(url.port) : url.protocol === 'https:' ? 443 : 8000
 
-  console.log(`${colors.red}❌ Chroma is not running at ${chromaUrl}${colors.reset}`)
-  console.log(`${colors.yellow}Please start Chroma with: npm run chroma:start${colors.reset}`)
-  return false
+    const client = new ChromaClient({
+      host: url.hostname,
+      port: portFromUrl,
+      ssl: url.protocol === 'https:',
+    })
+
+    // Try to get the collection (or heartbeat)
+    await client.heartbeat()
+    console.log(`${colors.green}✓ Chroma is running at ${chromaUrl}${colors.reset}`)
+    return true
+  } catch (error) {
+    console.log(`${colors.red}❌ Chroma is not running at ${chromaUrl}${colors.reset}`)
+    console.log(`${colors.yellow}Please start Chroma with: npm run chroma:start${colors.reset}`)
+    return false
+  }
 }
 
 async function main() {
