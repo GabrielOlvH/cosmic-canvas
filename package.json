@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
-    "start": "node .output/server/index.mjs",
+    "start": "tsx scripts/start-with-indexing.ts",
+    "start:server": "node .output/server/index.mjs",
     "serve": "vite preview",
     "test": "vitest run",
     "test:integration": "vitest run src/lib/document-indexer.test.ts",

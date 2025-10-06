@@ -240,7 +240,15 @@ function HomePage() {
                   </p>
                   
                   <p className="text-sm text-cyan-400 italic border-t border-cyan-500/20 pt-4 mt-4">
-                    Built for NASA Space Apps Challenge - Making scientific discovery intuitive and visual.
+                    Built for NASA Space Apps Challenge - Making scientific discovery intuitive and visual.<br />
+                    <a
+                      href="https://github.com/GabrielOlvH/cosmic-canvas/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-teal-400 hover:text-teal-300 underline transition-colors"
+                    >
+                      View on GitHub →
+                    </a>
                   </p>
                 </div>
               </div>
