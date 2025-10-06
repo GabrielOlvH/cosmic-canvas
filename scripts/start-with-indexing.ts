@@ -84,8 +84,8 @@ async function main() {
   // Step 3: Start the server
   console.log(`${colors.cyan}🚀 Starting production server...${colors.reset}\n`)
 
-  // Use npm start to run the production server
-  const serverSuccess = await runCommand('npm', ['start'])
+  // Use npm run start:server to run the actual server (not the indexing script again)
+  const serverSuccess = await runCommand('npm', ['run', 'start:server'])
 
   if (!serverSuccess) {
     console.error(`${colors.red}❌ Server failed to start${colors.reset}`)
