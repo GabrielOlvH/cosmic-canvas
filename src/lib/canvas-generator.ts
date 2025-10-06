@@ -63,7 +63,7 @@ export class CanvasGenerator {
     this.contentExtractor = new ContentExtractor()
   }
 
-  async initialize(openrouterKey: string, model = 'moonshotai/kimi-k2-0905') {
+  async initialize(openrouterKey: string, model = 'google/gemini-2.5-flash') {
     await this.themeDetector.initialize(openrouterKey, model)
     await this.contentExtractor.initialize(openrouterKey, model)
   }
@@ -85,16 +85,21 @@ export class CanvasGenerator {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     }
 
-    // PHASE 1: Extract relationships (for connection arrows)
+    // PHASE 1 & 2: Run relationship extraction and theme detection in parallel
     if (verbose) {
-      console.log('\n📊 Phase 1/6: Extracting relationships...')
+      console.log('\n� Phase 1-2/5: Extracting relationships and detecting themes (parallel)...')
     }
     const phase1Start = Date.now()
 
-    const relationships = this.relationshipExtractor.extractAllRelationships(
-      documents,
-      adversarialDocuments
-    )
+    const [relationships, themes] = await Promise.all([
+      // Extract relationships (for connection arrows)
+      Promise.resolve(this.relationshipExtractor.extractAllRelationships(
+        documents,
+        adversarialDocuments
+      )),
+      // Detect themes (request ~7 core mechanisms/topics)
+      this.themeDetector.detectThemes(documents, 7, researchQuery)
+    ])
 
     const allEdges: DocumentEdge[] = [
       ...relationships.semantic,
@@ -102,30 +107,17 @@ export class CanvasGenerator {
       ...relationships.contradictions,
     ]
 
-    if (verbose) {
-      const phase1Time = ((Date.now() - phase1Start) / 1000).toFixed(1)
-      console.log(`✓ Found ${allEdges.length} relationships (${phase1Time}s)`)
-    }
-
-    // PHASE 2: Detect themes
-    if (verbose) {
-      console.log('\n🎯 Phase 2/6: Detecting themes...')
-    }
-    const phase2Start = Date.now()
-
-  // Request richer, context-aware themes (target ~7 core mechanisms/topics)
-  const themes = await this.themeDetector.detectThemes(documents, 7, researchQuery)
     const themeMap = this.themeDetector.assignDocumentsToThemes(documents, themes)
 
     if (verbose) {
-      const phase2Time = ((Date.now() - phase2Start) / 1000).toFixed(1)
-      console.log(`✓ Identified ${themes.length} themes (${phase2Time}s):`)
+      const phase1Time = ((Date.now() - phase1Start) / 1000).toFixed(1)
+      console.log(`✓ Found ${allEdges.length} relationships and ${themes.length} themes (${phase1Time}s):`)
       themes.forEach(t => console.log(`  - ${t.name} (${t.documentIds.length} docs)`))
     }
 
-    // PHASE 3: Extract key findings from documents
+    // PHASE 3: Extract research question and key findings (research question is quick, findings are parallelized internally)
     if (verbose) {
-      console.log('\n📝 Phase 3/6: Extracting key findings...')
+      console.log('\n📝 Phase 3/5: Extracting key findings (parallel by theme)...')
     }
     const phase3Start = Date.now()
 
@@ -156,7 +148,7 @@ export class CanvasGenerator {
 
     // PHASE 4: Build hierarchical mind map structure
     if (verbose) {
-      console.log('\n🌳 Phase 4/6: Building mind map hierarchy...')
+      console.log('\n🌳 Phase 4/5: Building mind map hierarchy...')
     }
     const phase4Start = Date.now()
 
@@ -172,9 +164,9 @@ export class CanvasGenerator {
       console.log(`✓ Built hierarchy with ${hierarchy.nodes.size} nodes (${phase4Time}s)`)
     }
 
-    // PHASE 5: Calculate hierarchical radial layout
+    // PHASE 5: Calculate hierarchical radial layout and generate TLDraw shapes
     if (verbose) {
-      console.log('\n📐 Phase 5/6: Calculating radial layout...')
+      console.log('\n📐 Phase 5/5: Calculating layout and creating shapes...')
     }
     const phase5Start = Date.now()
 
@@ -187,16 +179,11 @@ export class CanvasGenerator {
     )
 
     if (verbose) {
-      const phase5Time = ((Date.now() - phase5Start) / 1000).toFixed(1)
-      console.log(`✓ Layout complete: ${layoutResult.bounds.width.toFixed(0)}x${layoutResult.bounds.height.toFixed(0)} (${phase5Time}s)`)
+      const layoutTime = ((Date.now() - phase5Start) / 1000).toFixed(1)
+      console.log(`✓ Layout complete: ${layoutResult.bounds.width.toFixed(0)}x${layoutResult.bounds.height.toFixed(0)} (${layoutTime}s)`)
     }
 
-    // PHASE 6: Generate TLDraw shapes for mind map
-    if (verbose) {
-      console.log('\n🎨 Phase 6/6: Creating mind map shapes...')
-    }
-    const phase6Start = Date.now()
-
+    // Generate TLDraw shapes for mind map
     const shapes: TLDrawShape[] = []
     const bindings: TLDrawBinding[] = []
 
@@ -227,8 +214,8 @@ export class CanvasGenerator {
     shapes.push(...labeledArrows)
 
     if (verbose) {
-      const phase6Time = ((Date.now() - phase6Start) / 1000).toFixed(1)
-      console.log(`✓ Created ${shapes.length} mind map shapes (${phase6Time}s)`)
+      const phase5Time = ((Date.now() - phase5Start) / 1000).toFixed(1)
+      console.log(`✓ Created ${shapes.length} mind map shapes (${phase5Time}s)`)
 
       // Final summary
       const totalTime = ((Date.now() - totalStart) / 1000).toFixed(1)

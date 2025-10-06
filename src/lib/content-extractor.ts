@@ -17,7 +17,7 @@ export interface ThemeFindings {
 export class ContentExtractor {
   private llm: ChatOpenAI | null = null
 
-  async initialize(openrouterKey: string, model = 'moonshotai/kimi-k2-0905') {
+  async initialize(openrouterKey: string, model = 'google/gemini-2.5-flash') {
     this.llm = new ChatOpenAI({
       openAIApiKey: openrouterKey,
       modelName: model,
@@ -243,7 +243,7 @@ Return ONLY the research question text, no other text.
   }
 
   /**
-   * Batch extract findings for all themes
+   * Batch extract findings for all themes - PARALLELIZED for faster processing
    */
   async extractAllThemeFindings(
     documents: DocumentNode[],
@@ -254,34 +254,51 @@ Return ONLY the research question text, no other text.
     const findingsMap = new Map<string, KeyFinding[]>()
     const totalThemes = themes.length
 
-    for (let i = 0; i < themes.length; i++) {
-      const theme = themes[i]
+    if (verbose) {
+      console.log(`  🚀 Processing ${totalThemes} themes in parallel...`)
+    }
+
+    // Process all themes in parallel for faster execution
+    const themePromises = themes.map(async (theme, i) => {
       const themeNumber = i + 1
       
       if (verbose) {
-        console.log(`  📝 [${themeNumber}/${totalThemes}] Extracting findings for theme: ${theme.name}`)
+        console.log(`  📝 [${themeNumber}/${totalThemes}] Starting: ${theme.name}`)
       }
 
       // Get documents for this theme
       const themeDocs = documents.filter(d => theme.documentIds.includes(d.metadata.source))
 
       if (themeDocs.length === 0) {
-        continue
+        return { themeId: theme.id, findings: [] }
       }
 
       try {
         const findings = await this.extractKeyFindings(themeDocs, theme.name, researchQuestion)
-        findingsMap.set(theme.id, findings)
 
         if (verbose) {
-          console.log(`  ✓ [${themeNumber}/${totalThemes}] Extracted ${findings.length} findings`)
+          console.log(`  ✓ [${themeNumber}/${totalThemes}] Completed: ${theme.name} (${findings.length} findings)`)
         }
+
+        return { themeId: theme.id, findings }
       } catch (error) {
         console.error(`Failed to extract findings for theme ${theme.name}:`, error)
         // Use fallback
         const fallbackFindings = this.createFallbackFindings(themeDocs)
-        findingsMap.set(theme.id, fallbackFindings)
+        return { themeId: theme.id, findings: fallbackFindings }
       }
+    })
+
+    // Wait for all themes to complete
+    const results = await Promise.all(themePromises)
+
+    // Build the map from results
+    for (const result of results) {
+      findingsMap.set(result.themeId, result.findings)
+    }
+
+    if (verbose) {
+      console.log(`  ✅ All ${totalThemes} themes processed in parallel`)
     }
 
     return findingsMap

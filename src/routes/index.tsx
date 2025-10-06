@@ -228,7 +228,7 @@ function HomePage() {
                   </p>
                   
                   <p className="text-base leading-relaxed">
-                    Our system takes <span className="text-cyan-400 font-semibold">608 space biology studies</span>, embedded in ChromaDB, and uses a RAG-powered LangChain agent (via Open Router with <span className="text-cyan-400">moonshotai/kimi-k2-0905</span>) to understand your questions. Instead of returning a simple list, it identifies themes across documents and generates interactive mind maps using tldraw—showing how studies relate to each other and to your query, complete with citations and links.
+                    Our system takes <span className="text-cyan-400 font-semibold">608 space biology studies</span>, embedded in ChromaDB, and uses a RAG-powered LangChain agent (via Open Router with <span className="text-cyan-400">Google Gemini 2.5 Flash</span>) to understand your questions. Instead of returning a simple list, it identifies themes across documents and generates interactive mind maps using tldraw—showing how studies relate to each other and to your query, complete with citations and links.
                   </p>
                   
                   <p className="text-base leading-relaxed">
